@@ -1,0 +1,12 @@
+apiVersion: v1
+entries:
+  freqtrade-testing:
+  - apiVersion: v2
+    created: "2024-10-07T01:50:21.349883546+03:00"
+    description: Freqtrade
+    digest: e8270306912d9c9d2b02c901f1784c045b9d359ff5149eef14ebf299ed1de883
+    name: freqtrade-testing
+    urls:
+    - https://raw.githubusercontent.com/maxkrukov/freqtrade-testing-helm/refs/heads/main/freqtrade-testing-1.0.0.tgz
+    version: 1.0.0
+generated: "2024-10-07T01:50:21.336250978+03:00"

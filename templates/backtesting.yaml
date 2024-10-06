@@ -1,0 +1,223 @@
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: freqtrade-config-{{ .Values.fullname | default "freqtrade" }}
+data:
+  config.json: |-
+{{ toPrettyJson .Values.config | nindent 4 }}
+  {{ .Values.strategyName }}.py: |-
+{{ tpl .Values.strategy . | nindent 4 }}
+
+---
+
+{{- if and .Values.pvc.data.enabled (not .Values.pvc.data.useExistingPVC) }}
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ .Values.pvc.data.name }}
+  labels:
+    app: {{ .Values.fullname | default "freqtrade" }}
+spec:
+  accessModes:
+    - {{ .Values.pvc.data.accessMode }}
+  resources:
+    requests:
+      storage: {{ .Values.pvc.data.size }}
+  {{- if .Values.pvc.data.storageClass }}
+  storageClassName: {{ .Values.pvc.data.storageClass }}
+  {{- end }}
+{{- end }}
+
+{{- if and .Values.pvc.strategy.enabled (not .Values.pvc.strategy.useExistingPVC) }}
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ .Values.pvc.strategy.name }}
+  labels:
+    app: {{ .Values.fullname | default "freqtrade" }}
+spec:
+  accessModes:
+    - {{ .Values.pvc.strategy.accessMode }}
+  resources:
+    requests:
+      storage: {{ .Values.pvc.strategy.size }}
+  {{- if .Values.pvc.strategy.storageClass }}
+  storageClassName: {{ .Values.pvc.strategy.storageClass }}
+  {{- end }}
+{{- end }}
+
+{{- if or .Values.testing.backtesting.enabled .Values.testing.hyperopt.enabled }}
+
+# Calculate backtesting and hyperopt time ranges
+{{- $ba := printf "-%dh" (mul 24 .Values.testing.backtesting.days) }}
+{{- $ha := printf "-%dh" (mul 24 .Values.testing.hyperopt.days) }}
+
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: testing-{{ .Values.fullname | default "freqtrade" }}-{{ now | unixEpoch }}
+  labels:
+    app: testing-{{ .Values.fullname | default "freqtrade" }}
+spec:
+  template:
+    spec:
+      {{- if .Values.testing.download_data.enabled }}
+      initContainers:
+      - name: download-data
+        image: {{ .Values.image.repository }}:{{ .Values.image.tag }}
+        imagePullPolicy: {{ .Values.image.pullPolicy | default "IfNotPresent" }}
+        command:
+        - freqtrade
+        args:
+        - download-data
+        {{- if .Values.testing.download_data.dl_trades }}
+        - --dl-trades
+        {{- end }}
+        - --pairs
+        {{- concat .Values.testing.download_data.pair_whitelist .Values.config.exchange.pair_whitelist | uniq | toYaml | nindent 8 }}
+        - --days
+        - "{{ .Values.testing.download_data.days }}"
+        - --timeframes
+        {{- ( concat ( list .Values.config.timeframe ) .Values.testing.download_data.timeframes ) | uniq | toYaml | nindent 8 }}
+        - --datadir
+        - /data/{{ .Values.config.exchange.name | default "binance" }}
+        - --config
+        - /freqtrade/config/config.json
+        volumeMounts:
+        - mountPath: /data
+          name: data
+        - mountPath: /freqtrade/config/config.json
+          name: configmap
+          subPath: config.json
+      {{- end }}
+      shareProcessNamespace: true
+      containers:
+      {{- if .Values.testing.backtesting.enabled }}
+      - name: backtesting
+        image: {{ .Values.image.repository }}:{{ .Values.image.tag }}
+        imagePullPolicy: {{ .Values.image.pullPolicy | default "IfNotPresent" }}
+        command:
+        - freqtrade
+        args:
+        - backtesting
+        - --config
+        - /freqtrade/config/config.json
+        - --datadir
+        - /data/{{ .Values.config.exchange.name | default "binance" }}
+        - --breakdown
+        - {{ .Values.testing.backtesting.breakdown }}
+        - --strategy-list
+        - {{ .Values.strategyName }}
+        {{- if .Values.testing.backtesting.days }}
+        - --timerange
+        - {{ now | mustDateModify $ba | date "20060102-" }}
+        {{- end }}
+        {{- if .Values.testing.backtesting.fee }}
+        - --fee
+        - {{ .Values.testing.backtesting.fee | quote }}
+        {{- end }}
+        {{- with .Values.testing.backtesting.extraArgs }}
+        {{- . | toYaml | nindent 8 }}
+        {{- end }}
+        volumeMounts:
+        - mountPath: /data
+          name: data
+        - mountPath: /freqtrade/user_data/strategies
+          name: strategy
+        - mountPath: /freqtrade/config/config.json
+          name: configmap
+          subPath: config.json
+        - mountPath: /freqtrade/user_data/strategies/{{ .Values.strategyName }}.py
+          name: configmap
+          subPath: {{ .Values.strategyName }}.py
+        resources:
+          {{- toYaml .Values.resources | nindent 12 }}
+      {{- end }}
+
+      {{- if .Values.testing.hyperopt.enabled }}
+      - name: hyperopt
+        image: {{ .Values.image.repository }}:{{ .Values.image.tag }}
+        imagePullPolicy: {{ .Values.image.pullPolicy | default "IfNotPresent" }}
+        command:
+        - freqtrade
+        args:
+        - hyperopt
+        - --config
+        - /freqtrade/config/config.json
+        - --datadir
+        - /data/{{ .Values.config.exchange.name | default "binance" }}
+        - --hyperopt-loss
+        - {{ .Values.testing.hyperopt.hyperoptStrategy }}
+        - --spaces
+        {{ .Values.testing.hyperopt.spaces | toYaml | nindent 8 }}
+        - --strategy
+        - {{ .Values.strategyName }}
+        {{- if .Values.testing.hyperopt.fee }}
+        - --fee
+        - {{ .Values.testing.hyperopt.fee | quote }}
+        {{- end }}
+        - -e
+        - "{{ .Values.testing.hyperopt.tries }}"
+        {{- if .Values.testing.hyperopt.days }}
+        - --timerange
+        - {{ now | mustDateModify $ha | date "20060102-" }}
+        {{- end }}
+        {{- with .Values.testing.hyperopt.extraArgs }}
+        {{ . | toYaml | nindent 8 }}
+        {{- end }}
+        volumeMounts:
+        - mountPath: /data
+          name: data
+        - mountPath: /freqtrade/user_data/strategies
+          name: strategy
+        - mountPath: /freqtrade/config/config.json
+          name: configmap
+          subPath: config.json
+        - mountPath: /freqtrade/user_data/strategies/{{ .Values.strategyName }}.py
+          name: configmap
+          subPath: {{ .Values.strategyName }}.py
+        resources:
+          {{- toYaml .Values.resources | nindent 12 }}
+      {{- end }}
+      restartPolicy: Never
+      {{- if .Values.nodeSelector }}
+      nodeSelector:
+{{ toYaml .Values.nodeSelector | indent 8 }}
+      {{- end }}
+      {{- if .Values.affinity }}
+      affinity:
+{{ toYaml .Values.affinity | indent 8 }}
+      {{- end }}
+      {{- if .Values.tolerations }}
+      tolerations:
+{{ toYaml .Values.tolerations | indent 8 }}
+      {{- end }}
+      volumes:
+      - name: data
+        {{- if .Values.pvc.data.useExistingPVC }}
+        persistentVolumeClaim:
+          claimName: {{ .Values.pvc.data.existingPVCName }}
+        {{- else if .Values.pvc.data.enabled }}
+        persistentVolumeClaim:
+          claimName: {{ .Values.pvc.data.name }}
+        {{- else }}
+        emptyDir: {}
+        {{- end }}
+      - name: strategy
+        {{- if .Values.pvc.strategy.useExistingPVC }}
+        persistentVolumeClaim:
+          claimName: {{ .Values.pvc.strategy.existingPVCName }}
+        {{- else if .Values.pvc.strategy.enabled }}
+        persistentVolumeClaim:
+          claimName: {{ .Values.pvc.strategy.name }}
+        {{- else }}
+        emptyDir: {}
+        {{- end }}
+      - name: configmap
+        configMap:
+          name: freqtrade-config-{{ .Values.fullname }}
+{{- end }}

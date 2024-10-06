@@ -1,0 +1,267 @@
+# Freqtrade Helm Chart Configuration
+
+fullname: "freqtrade-bot"  # Name for the Freqtrade bot deployment
+
+config:
+  bot_name: freqtrade  # The name of the bot as used in configuration
+
+  # Trade settings
+  max_open_trades: 1  # Max number of simultaneous open trades
+  stake_amount: 100  # Amount to stake per trade in the defined currency
+  stake_currency: USDT  # The currency used for staking, e.g., USDT, BTC, ETH
+  timeframe: 5m  # Trading timeframe (e.g., 5m for 5 minutes)
+
+  tradable_balance_ratio: 0.9999  # Percentage of balance available for trading
+  trading_mode: spot  # Trading mode (spot or futures)
+  use_exit_signal: true  # Enables exit signal for closing trades
+
+  # Position adjustment (DCA)
+  position_adjustment_enable: true  # Enables Dollar-Cost Averaging (DCA)
+  max_entry_position_adjustment: 100  # Max number of position adjustments (DCA)
+
+  # Dry-run mode settings
+  dry_run: true  # Simulate trades without real funds (for testing)
+  dry_run_wallet: 100000  # Initial wallet balance for dry-run mode
+
+  # Entry pricing strategy
+  entry_pricing:
+    check_depth_of_market:
+      bids_to_ask_delta: 1  # Difference between bids and asks for market depth check
+      enabled: false  # Disable market depth checking
+    order_book_top: 1  # Use top of the order book for entry pricing
+    price_last_balance: 0  # Not used in this config, can be omitted
+    price_side: other  # Determines which side of the order book to use for pricing
+    use_order_book: true  # Enable the use of order book data for entry pricing
+
+  # Exit pricing strategy
+  exit_pricing:
+    order_book_top: 1  # Use top of the order book for exit pricing
+    price_side: other  # Determines the order book side for exit pricing
+    use_order_book: true  # Enable order book data for exit pricing
+
+  # Exchange configuration
+  exchange:
+    name: binance  # The exchange to use (e.g., Binance)
+    ccxt_async_config:
+      enableRateLimit: false  # Disable rate limiting for async requests
+      rateLimit: 100  # Limit for async requests
+    ccxt_config:
+      enableRateLimit: false  # Disable rate limiting for synchronous requests
+      rateLimit: 100  # Limit for synchronous requests
+    log_responses: false  # Disable logging of exchange responses for reduced verbosity
+    pair_blacklist: []  # List of pairs to avoid (currently empty)
+    pair_whitelist:
+    - "ETH/USDT"  # The pair to trade (add more pairs if needed)
+
+  # Pairlist configuration
+  pairlists:
+  - method: StaticPairList  # Use a static list of trading pairs
+
+# Image settings for the Freqtrade Docker container
+image:
+  repository: freqtradeorg/freqtrade  # Freqtrade Docker image repository
+  tag: "2023.12"  # Docker image version
+  pullPolicy: IfNotPresent  # Pull image only if it's not present locally
+
+# Resources for the Freqtrade pod (optional, uncomment to define)
+resources: {}
+#  requests:
+#    memory: "512Mi"  # Minimum memory allocation
+#    cpu: "500m"  # Minimum CPU allocation
+#  limits:
+#    memory: "1Gi"  # Maximum memory allocation
+#    cpu: "1"  # Maximum CPU allocation
+
+# Pod scheduling preferences
+nodeSelector: {}  # Specify node affinity (optional)
+affinity: {}  # Define pod affinity rules (optional)
+tolerations: []  # Define tolerations for tainted nodes (optional)
+
+# Testing configuration for downloading data, backtesting, and hyperopt
+testing:
+
+  # Data download settings
+  download_data:
+    enabled: false  # Disable historical data download
+    days: 31  # Number of days of data to download if enabled
+    timeframes:
+      - "1d"  # Timeframe for downloaded data
+    dl_trades: false  # Disable trade data download
+    pair_whitelist:
+      - "BTC/USDT"  # Whitelisted pairs for data download
+
+  # Backtesting settings
+  backtesting:
+    enabled: false  # Disable backtesting
+    days: 30  # Number of days to backtest if enabled
+    breakdown: "day"  # Breakdown backtest results by day (alternative: month)
+    fee: 0.0005  # Fee applied during backtesting
+    extraArgs: []  # Additional arguments for backtesting (optional)
+
+  # Hyperopt settings for strategy optimization
+  hyperopt:
+    enabled: true  # Enable hyperoptimization
+    days: 30  # Number of days of data to use for optimization
+    hyperoptStrategy: "SharpeHyperOptLossDaily"
+    spaces:
+      - roi  # Optimize return on investment
+      - stoploss  # Optimize stoploss parameters
+      # Additional spaces like trailing, buy, sell can be added as needed
+    fee: 0.0005  # Trading fee used for hyperopt
+    tries: 30  # Number of hyperopt attempts
+    extraArgs:
+    - "--job-workers"
+    - "1"  # Number of parallel workers for hyperopt
+
+    # Available hyperopt strategies:
+    # - ShortTradeDurHyperOptLoss: Legacy Freqtrade hyperoptimization for short trade duration and avoiding losses
+    # - OnlyProfitHyperOptLoss: Focuses purely on maximizing profit
+    # - SharpeHyperOptLoss: Optimizes Sharpe Ratio based on trade returns and standard deviation
+    # - SharpeHyperOptLossDaily: Optimizes Sharpe Ratio based on daily trade returns
+    # - SortinoHyperOptLoss: Optimizes Sortino Ratio using downside standard deviation for trade returns
+    # - SortinoHyperOptLossDaily: Optimizes Sortino Ratio using downside standard deviation for daily trade returns
+    # - MaxDrawDownHyperOptLoss: Optimizes Maximum absolute drawdown
+    # - MaxDrawDownRelativeHyperOptLoss: Optimizes maximum absolute and relative drawdown
+    # - CalmarHyperOptLoss: Optimizes Calmar Ratio using returns relative to max drawdown
+    # - ProfitDrawDownHyperOptLoss: Optimizes for maximum profit while minimizing drawdown. Adjustable via DRAWDOWN_MULT.
+
+# Persistent Volume Claims (PVC) for storing data and strategies
+pvc:
+
+  # Data storage
+  data:
+    enabled: true  # Enable PVC for storing bot data
+    name: freqtrade-pvc-data  # PVC name for data
+    size: 1Gi  # PVC size for data storage
+    storageClass: ""  # Optional storage class
+    accessMode: ReadWriteOnce  # Access mode (single writer)
+    useExistingPVC: false  # Set to true to use an existing PVC
+    existingPVCName: ""  # Name of the existing PVC if using one
+
+  # Strategy storage
+  strategy:
+    enabled: true  # Enable PVC for storing strategies
+    name: freqtrade-pvc-strategy  # PVC name for strategies
+    size: 1Gi  # PVC size for strategy storage
+    storageClass: ""  # Optional storage class
+    accessMode: ReadWriteOnce  # Access mode (single writer)
+    useExistingPVC: false  # Set to true to use an existing PVC
+    existingPVCName: ""  # Name of the existing PVC if using one
+
+# Strategy information
+strategyName: Best  # Name of the strategy being used
+
+# Keep this line: "class {{ .Values.strategyName }}(IStrategy):"
+strategy: |-
+ # --- Do not remove these libs ---
+ from freqtrade.strategy import IStrategy
+ from typing import Dict, List
+ from functools import reduce
+ from pandas import DataFrame
+ # --------------------------------
+
+ import talib.abstract as ta
+ import freqtrade.vendor.qtpylib.indicators as qtpylib
+
+ class {{ .Values.strategyName }}(IStrategy):
+
+    INTERFACE_VERSION: int = 3
+    # Minimal ROI designed for the strategy.
+    # This attribute will be overridden if the config file contains "minimal_roi"
+    minimal_roi = {
+        "60":  0.01,
+        "30":  0.03,
+        "20":  0.04,
+        "0":  0.05
+    }
+
+    # Optimal stoploss designed for the strategy
+    # This attribute will be overridden if the config file contains "stoploss"
+    stoploss = -0.10
+
+    # Optimal timeframe for the strategy
+    timeframe = '5m'
+
+    # trailing stoploss
+    trailing_stop = False
+    trailing_stop_positive = 0.01
+    trailing_stop_positive_offset = 0.02
+
+    # run "populate_indicators" only for new candle
+    process_only_new_candles = True
+
+    # Experimental settings (configuration will overide these if set)
+    use_exit_signal = True
+    exit_profit_only = True
+    ignore_roi_if_entry_signal = False
+
+    # Optional order type mapping
+    order_types = {
+        'entry': 'limit',
+        'exit': 'limit',
+        'stoploss': 'market',
+        'stoploss_on_exchange': False
+    }
+
+    def informative_pairs(self):
+        """
+        Define additional, informative pair/interval combinations to be cached from the exchange.
+        These pair/interval combinations are non-tradeable, unless they are part
+        of the whitelist as well.
+        For more information, please consult the documentation
+        :return: List of tuples in the format (pair, interval)
+            Sample: return [("ETH/USDT", "5m"),
+                            ("BTC/USDT", "15m"),
+                            ]
+        """
+        return []
+
+    def populate_indicators(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
+        """
+        Adds several different TA indicators to the given DataFrame
+
+        Performance Note: For the best performance be frugal on the number of indicators
+        you are using. Let uncomment only the indicator you are using in your strategies
+        or your hyperopt configuration, otherwise you will waste your memory and CPU usage.
+        """
+
+        dataframe['ema20'] = ta.EMA(dataframe, timeperiod=20)
+        dataframe['ema50'] = ta.EMA(dataframe, timeperiod=50)
+        dataframe['ema100'] = ta.EMA(dataframe, timeperiod=100)
+
+        heikinashi = qtpylib.heikinashi(dataframe)
+        dataframe['ha_open'] = heikinashi['open']
+        dataframe['ha_close'] = heikinashi['close']
+
+        return dataframe
+
+    def populate_entry_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
+        """
+        Based on TA indicators, populates the buy signal for the given dataframe
+        :param dataframe: DataFrame
+        :return: DataFrame with buy column
+        """
+        dataframe.loc[
+            (
+                qtpylib.crossed_above(dataframe['ema20'], dataframe['ema50']) &
+                (dataframe['ha_close'] > dataframe['ema20']) &
+                (dataframe['ha_open'] < dataframe['ha_close'])  # green bar
+            ),
+            'enter_long'] = 1
+
+        return dataframe
+
+    def populate_exit_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
+        """
+        Based on TA indicators, populates the sell signal for the given dataframe
+        :param dataframe: DataFrame
+        :return: DataFrame with buy column
+        """
+        dataframe.loc[
+            (
+                qtpylib.crossed_above(dataframe['ema50'], dataframe['ema100']) &
+                (dataframe['ha_close'] < dataframe['ema20']) &
+                (dataframe['ha_open'] > dataframe['ha_close'])  # red bar
+            ),
+            'exit_long'] = 1
+        return dataframe
