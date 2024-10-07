@@ -38,6 +38,22 @@ This Helm chart deploys and manages the Freqtrade bot in a Kubernetes cluster. I
 
 ---
 
+## Installation
+
+To install the Freqtrade testing Helm chart, first add the Helm repository:
+
+```bash
+helm repo add fretrade-testing https://raw.githubusercontent.com/maxkrukov/freqtrade-testing-helm/refs/heads/main
+```
+
+Then upgrade and install the chart using your custom values:
+
+```bash
+helm upgrade -i -f custom-values.yaml fretrade-testing/fretrade-testing
+```
+
+---
+
 ## Freqtrade Configuration
 
 The **freqtrade-testing-helm** chart allows you to fully customize your bot configuration through the `values.yaml` file. Below is an explanation of the key configuration options for Freqtrade.
