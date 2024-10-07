@@ -94,48 +94,13 @@ spec:
           name: configmap
           subPath: config.json
       {{- end }}
-      shareProcessNamespace: true
+
+      {{- if and .Values.testing.backtesting.enabled (not .Values.testing.hyperopt.enabled) }}
       containers:
-      {{- if .Values.testing.backtesting.enabled }}
-      - name: backtesting
-        image: {{ .Values.image.repository }}:{{ .Values.image.tag }}
-        imagePullPolicy: {{ .Values.image.pullPolicy | default "IfNotPresent" }}
-        command:
-        - freqtrade
-        args:
-        - backtesting
-        - --config
-        - /freqtrade/config/config.json
-        - --datadir
-        - /data/{{ .Values.config.exchange.name | default "binance" }}
-        - --breakdown
-        - {{ .Values.testing.backtesting.breakdown }}
-        - --strategy-list
-        - {{ .Values.strategyName }}
-        {{- if .Values.testing.backtesting.days }}
-        - --timerange
-        - {{ now | mustDateModify $ba | date "20060102-" }}
-        {{- end }}
-        {{- if .Values.testing.backtesting.fee }}
-        - --fee
-        - {{ .Values.testing.backtesting.fee | quote }}
-        {{- end }}
-        {{- with .Values.testing.backtesting.extraArgs }}
-        {{- . | toYaml | nindent 8 }}
-        {{- end }}
-        volumeMounts:
-        - mountPath: /data
-          name: data
-        - mountPath: /freqtrade/user_data/strategies
-          name: strategy
-        - mountPath: /freqtrade/config/config.json
-          name: configmap
-          subPath: config.json
-        - mountPath: /freqtrade/user_data/strategies/{{ .Values.strategyName }}.py
-          name: configmap
-          subPath: {{ .Values.strategyName }}.py
-        resources:
-          {{- toYaml .Values.resources | nindent 12 }}
+      {{- end }}
+
+      {{- if and (not .Values.testing.backtesting.enabled) .Values.testing.hyperopt.enabled }}
+      containers:
       {{- end }}
 
       {{- if .Values.testing.hyperopt.enabled }}
@@ -183,6 +148,53 @@ spec:
         resources:
           {{- toYaml .Values.resources | nindent 12 }}
       {{- end }}
+
+      {{- if and .Values.testing.backtesting.enabled .Values.testing.hyperopt.enabled }}
+      containers:
+      {{- end }}
+
+      {{- if .Values.testing.backtesting.enabled }}
+      - name: backtesting
+        image: {{ .Values.image.repository }}:{{ .Values.image.tag }}
+        imagePullPolicy: {{ .Values.image.pullPolicy | default "IfNotPresent" }}
+        command:
+        - freqtrade
+        args:
+        - backtesting
+        - --config
+        - /freqtrade/config/config.json
+        - --datadir
+        - /data/{{ .Values.config.exchange.name | default "binance" }}
+        - --breakdown
+        - {{ .Values.testing.backtesting.breakdown }}
+        - --strategy-list
+        - {{ .Values.strategyName }}
+        {{- if .Values.testing.backtesting.days }}
+        - --timerange
+        - {{ now | mustDateModify $ba | date "20060102-" }}
+        {{- end }}
+        {{- if .Values.testing.backtesting.fee }}
+        - --fee
+        - {{ .Values.testing.backtesting.fee | quote }}
+        {{- end }}
+        {{- with .Values.testing.backtesting.extraArgs }}
+        {{- . | toYaml | nindent 8 }}
+        {{- end }}
+        volumeMounts:
+        - mountPath: /data
+          name: data
+        - mountPath: /freqtrade/user_data/strategies
+          name: strategy
+        - mountPath: /freqtrade/config/config.json
+          name: configmap
+          subPath: config.json
+        - mountPath: /freqtrade/user_data/strategies/{{ .Values.strategyName }}.py
+          name: configmap
+          subPath: {{ .Values.strategyName }}.py
+        resources:
+          {{- toYaml .Values.resources | nindent 12 }}
+      {{- end }}
+
       restartPolicy: Never
       {{- if .Values.nodeSelector }}
       nodeSelector:
