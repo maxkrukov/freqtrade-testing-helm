@@ -101,6 +101,7 @@ testing:
   # Hyperopt settings for strategy optimization
   hyperopt:
     enabled: true  # Enable hyperoptimization
+    offset: 0 # Period x days ago
     days: 30  # Number of days of data to use for optimization
     hyperoptStrategy: "SharpeHyperOptLossDaily"
     spaces:

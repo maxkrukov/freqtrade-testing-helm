@@ -53,7 +53,8 @@ spec:
 
 # Calculate backtesting and hyperopt time ranges
 {{- $ba := printf "-%dh" (mul 24 .Values.testing.backtesting.days) }}
-{{- $ha := printf "-%dh" (mul 24 .Values.testing.hyperopt.days) }}
+{{- $ha := printf "-%dh" (mul 24 (add .Values.testing.hyperopt.days .Values.testing.hyperopt.offset )) }}
+{{- $ho := printf "-%dh" (mul 24 .Values.testing.hyperopt.offset ) }}
 
 ---
 apiVersion: batch/v1
@@ -129,7 +130,7 @@ spec:
         - "{{ .Values.testing.hyperopt.tries }}"
         {{- if .Values.testing.hyperopt.days }}
         - --timerange
-        - {{ now | mustDateModify $ha | date "20060102-" }}
+        - {{ now | mustDateModify $ha | date "20060102-" }}{{ now | mustDateModify $ho | date "20060102" }}
         {{- end }}
         {{- with .Values.testing.hyperopt.extraArgs }}
         {{ . | toYaml | nindent 8 }}

@@ -145,6 +145,7 @@ Hyperopt is a tool that optimizes your strategy's parameters by finding the best
 testing:
   hyperopt:
     enabled: true
+    offset: 0 # Period x days ago
     days: 30  # Number of days of historical data used for optimization
     hyperoptStrategy: "SharpeHyperOptLossDaily"  # The optimization strategy to use
     spaces:
