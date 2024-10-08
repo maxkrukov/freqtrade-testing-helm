@@ -46,7 +46,7 @@ To install the Freqtrade testing Helm chart, first add the Helm repository:
 helm repo add fretrade-testing https://raw.githubusercontent.com/maxkrukov/freqtrade-testing-helm/refs/heads/main
 ```
 
-Then upgrade and install the chart using your custom values:
+Then upgrade and install the chart using your custom values (custom-values.yaml example included):
 
 ```bash
 helm upgrade -i -f custom-values.yaml fretrade-testing/fretrade-testing

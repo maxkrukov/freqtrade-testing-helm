@@ -1,0 +1,244 @@
+config:
+  bot_name: freqtrade
+
+  # Trade settings
+  max_open_trades: -1
+  stake_amount: 500
+  timeframe: 15m
+
+  dry_run_wallet: 1010  # Initial wallet balance for dry-run mode
+
+  # Mode
+  trading_mode: "futures"
+  margin_mode: "isolated"
+
+  # Position adjustment (DCA)
+  position_adjustment_enable: false
+  max_entry_position_adjustment: 10
+
+  exchange:
+    pair_whitelist:
+    - "ETH/USDT:USDT"
+    - "BTC/USDT:USDT"
+
+# Testing configuration for downloading data, backtesting, and hyperopt
+testing:
+
+  # Data download settings
+  download_data:
+    enabled: true
+    days: 365
+    timeframes: []
+    pair_whitelist: []
+
+  # Backtesting settings
+  backtesting:
+    enabled: true
+    days: 180
+    breakdown: "month"
+    fee: 0.0005
+
+  # Hyperopt settings for strategy optimization
+  hyperopt:
+    enabled: true
+    offset: 180
+    days: 180
+    hyperoptStrategy: "OnlyProfitHyperOptLoss"
+    spaces:
+      - roi
+      - stoploss
+      #- trailing
+      - buy
+      - sell
+      # Additional spaces like trailing, buy, sell can be added as needed
+    fee: 0.0005
+    tries: 200
+    extraArgs: []
+    #- "--job-workers"
+    #- "1"
+
+    # Available hyperopt strategies:
+    # - ShortTradeDurHyperOptLoss: Legacy Freqtrade hyperoptimization for short trade duration and avoiding losses
+    # - OnlyProfitHyperOptLoss: Focuses purely on maximizing profit
+    # - SharpeHyperOptLoss: Optimizes Sharpe Ratio based on trade returns and standard deviation
+    # - SharpeHyperOptLossDaily: Optimizes Sharpe Ratio based on daily trade returns
+    # - SortinoHyperOptLoss: Optimizes Sortino Ratio using downside standard deviation for trade returns
+    # - SortinoHyperOptLossDaily: Optimizes Sortino Ratio using downside standard deviation for daily trade returns
+    # - MaxDrawDownHyperOptLoss: Optimizes Maximum absolute drawdown
+    # - MaxDrawDownRelativeHyperOptLoss: Optimizes maximum absolute and relative drawdown
+    # - CalmarHyperOptLoss: Optimizes Calmar Ratio using returns relative to max drawdown
+    # - ProfitDrawDownHyperOptLoss: Optimizes for maximum profit while minimizing drawdown. Adjustable via DRAWDOWN_MULT.
+
+
+pvc:
+  # Data storage
+  data:
+    enabled: true
+  # Strategy storage
+  strategy:
+    enabled: false
+
+
+HyperOpt: |-
+    class HyperOpt:
+        # Define a custom stoploss space.
+        def stoploss_space():
+            return [SKDecimal(-0.5, -0.3, decimals=2, name='stoploss')]
+
+        # Define custom ROI space
+        def roi_space() -> List[Dimension]:
+            return [
+                Integer(144, 14400, name='roi_t1'),
+                SKDecimal(0.01, 0.1, decimals=3, name='roi_p1'),
+            ]
+
+        def generate_roi_table(params: Dict) -> Dict[int, float]:
+
+            roi_table = {}
+            roi_table[0] = params['roi_p1']
+            roi_table[params['roi_t1']] = -1
+
+            return roi_table
+
+
+imports: |-
+  # --- Do not remove these libs ---
+  from freqtrade.strategy import (BooleanParameter, CategoricalParameter, DecimalParameter,
+                                IStrategy, IntParameter, merge_informative_pair)
+
+  from freqtrade.optimize.space import Categorical, Dimension, Integer, SKDecimal
+  from typing import Any, Dict, List, Optional, Tuple, Union
+  from functools import reduce
+  from pandas import DataFrame
+  import numpy as np
+  import pandas as pd
+
+  from freqtrade.optimize.space import Categorical, Dimension, Integer, SKDecimal
+  # --------------------------------
+  import talib.abstract as ta
+  import freqtrade.vendor.qtpylib.indicators as qtpylib
+
+  from freqtrade.exchange import timeframe_to_minutes
+  from technical.util import resample_to_interval, resampled_merge
+
+  from freqtrade.persistence import Trade
+  from datetime import timedelta, datetime, timezone
+  from freqtrade.exchange import date_minus_candles
+
+  from freqtrade.strategy import stoploss_from_open
+
+  import time
+  import math
+
+  import logging
+  logger = logging.getLogger(__name__)
+
+##############################################
+##############################################
+##############################################
+
+strategy: |-
+  {{ .Values.imports | nindent 0 }}
+  class {{ .Values.strategyName }}(IStrategy):
+    {{ .Values.HyperOpt | nindent 2 }}
+
+    INTERFACE_VERSION: int = 3
+    # Minimal ROI designed for the strategy.
+    # This attribute will be overridden if the config file contains "minimal_roi"
+    minimal_roi = {
+        "0": 10
+    }
+
+    # Optimal stoploss designed for the strategy
+    # This attribute will be overridden if the config file contains "stoploss"
+    stoploss = -1
+
+    # Optimal timeframe for the strategy
+    timeframe = '{{ .Values.config.timeframe }}'
+
+    # trailing stoploss
+    trailing_stop = False
+
+    # Can Short
+    can_short = True
+
+    # run "populate_indicators" only for new candle
+    process_only_new_candles = True
+
+    # Experimental settings (configuration will overide these if set)
+    use_exit_signal = True
+    exit_profit_only = True
+    ignore_roi_if_entry_signal = False
+
+    # Optional order type mapping
+    order_types = {
+        'entry': 'limit',
+        'exit': 'limit',
+        'stoploss': 'market',
+        'stoploss_on_exchange': False
+    }
+
+    #################
+    # STRATEGY BODY #
+    #################
+
+    # Define hyperopt parameters for adjustment
+    buy_rsi = IntParameter(10, 30, default=30, space='buy')
+    buy_bb_width = DecimalParameter(0.01, 0.1, default=0.03, space='buy')
+
+    sell_rsi = IntParameter(70, 90, default=70, space='sell')
+    sell_bb_width = DecimalParameter(0.01, 0.1, default=0.03, space='sell')
+
+
+    def populate_indicators(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
+
+        # RSI
+        dataframe['rsi'] = ta.RSI(dataframe, timeperiod=14)
+
+        # Bollinger bands
+        bollinger = qtpylib.bollinger_bands(qtpylib.typical_price(dataframe), window=20, stds=2)
+        dataframe['bb_lowerband'] = bollinger['lower']
+        dataframe['bb_middleband'] = bollinger['mid']
+        dataframe['bb_upperband'] = bollinger['upper']
+        dataframe['bb_width'] = (dataframe['bb_upperband'] - dataframe['bb_lowerband']) / dataframe['bb_middleband']
+
+        return dataframe
+
+    def populate_entry_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
+        # Buy signal based on RSI and Bollinger Band width
+        dataframe.loc[
+            (
+                (dataframe['rsi'] < self.buy_rsi.value) &
+                (dataframe['bb_width'] > self.buy_bb_width.value)
+            ),
+            'enter_long'] = 1
+
+        dataframe.loc[
+            (
+                (dataframe['rsi'] > self.sell_rsi.value) &
+                (dataframe['bb_width'] > self.sell_bb_width.value)
+            ),
+            'enter_short'] = 1
+
+        return dataframe
+
+    def populate_exit_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
+        # Sell signal when RSI goes above 70
+        dataframe.loc[
+            (
+                (dataframe['rsi'] > 70)
+            ),
+            'exit_long'] = 1
+
+        dataframe.loc[
+            (
+                (dataframe['rsi'] < 30)
+            ),
+            'exit_short'] = 1
+
+        return dataframe
+
+    def leverage(self, pair: str, current_time: datetime, current_rate: float,
+                 proposed_leverage: float, max_leverage: float, entry_tag: Optional[str], side: str,
+                 **kwargs) -> float:
+        return 1.0
