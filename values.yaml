@@ -93,6 +93,7 @@ testing:
   # Backtesting settings
   backtesting:
     enabled: false  # Disable backtesting
+    offset: 0 # Period x days ago
     days: 30  # Number of days to backtest if enabled
     breakdown: "day"  # Breakdown backtest results by day (alternative: month)
     fee: 0.0005  # Fee applied during backtesting

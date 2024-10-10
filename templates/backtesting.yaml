@@ -52,7 +52,9 @@ spec:
 {{- if or .Values.testing.backtesting.enabled .Values.testing.hyperopt.enabled }}
 
 # Calculate backtesting and hyperopt time ranges
-{{- $ba := printf "-%dh" (mul 24 .Values.testing.backtesting.days) }}
+{{- $ba := printf "-%dh" (mul 24 (add .Values.testing.backtesting.days .Values.testing.backtesting.offset )) }}
+{{- $bo := printf "-%dh" (mul 24 .Values.testing.backtesting.offset ) }}
+
 {{- $ha := printf "-%dh" (mul 24 (add .Values.testing.hyperopt.days .Values.testing.hyperopt.offset )) }}
 {{- $ho := printf "-%dh" (mul 24 .Values.testing.hyperopt.offset ) }}
 
@@ -172,7 +174,7 @@ spec:
         - {{ .Values.strategyName }}
         {{- if .Values.testing.backtesting.days }}
         - --timerange
-        - {{ now | mustDateModify $ba | date "20060102-" }}
+        - {{ now | mustDateModify $ba | date "20060102-" }}{{ now | mustDateModify $bo | date "20060102" }}
         {{- end }}
         {{- if .Values.testing.backtesting.fee }}
         - --fee
