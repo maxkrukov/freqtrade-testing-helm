@@ -4,7 +4,7 @@
 fullname: "freqtrade01"  # Name for the Freqtrade bot deployment
 
 bot:
-  enabled: true
+  enabled: false
 
   # Resources for the Freqtrade pod (optional, uncomment to define)
   resources: {}
@@ -26,7 +26,6 @@ bot:
   ingress:
     enabled: true
     annotations:
-      nginx.ingress.kubernetes.io/rewrite-target: /
       kubernetes.io/tls-acme: "true"
     hosts:
       - "example.com" # Replace with your domain

@@ -1,3 +1,4 @@
+{{- if .Values.bot.enabled }}
 ---
 apiVersion: v1
 kind: Service
@@ -61,6 +62,8 @@ spec:
     metadata:
       labels:
         app: testing-bot-{{ .Values.fullname | default "freqtrade" }}
+      annotations:
+        rollme: {{ randAlphaNum 5 | quote }}
     spec:
       containers:
       - name: bot
@@ -90,7 +93,6 @@ spec:
           subPath: {{ .Values.strategyName }}.py
         resources:
           {{- toYaml .Values.bot.resources | nindent 12 }}
-      restartPolicy: Never
       {{- if .Values.bot.nodeSelector }}
       nodeSelector:
         {{ toYaml .Values.bot.nodeSelector | nindent 8 }}
@@ -117,3 +119,4 @@ spec:
       - name: configmap
         configMap:
           name: freqtrade-config-{{ .Values.fullname }}
+{{- end }}

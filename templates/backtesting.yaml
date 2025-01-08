@@ -66,6 +66,7 @@ metadata:
   labels:
     app: testing-{{ .Values.fullname | default "freqtrade" }}
 spec:
+  backoffLimit: 0
   template:
     spec:
       initContainers:
