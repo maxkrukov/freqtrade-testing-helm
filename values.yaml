@@ -1,6 +1,7 @@
+---
 # Freqtrade Helm Chart Configuration
 
-fullname: "freqtrade-bot"  # Name for the Freqtrade bot deployment
+fullname: "freqtrade01"  # Name for the Freqtrade bot deployment
 
 config:
   bot_name: freqtrade  # The name of the bot as used in configuration
@@ -21,7 +22,7 @@ config:
 
   # Dry-run mode settings
   dry_run: true  # Simulate trades without real funds (for testing)
-  dry_run_wallet: 100000  # Initial wallet balance for dry-run mode
+  dry_run_wallet: 1000  # Initial wallet balance for dry-run mode
 
   # Entry pricing strategy
   entry_pricing:
@@ -60,7 +61,7 @@ config:
 # Image settings for the Freqtrade Docker container
 image:
   repository: freqtradeorg/freqtrade  # Freqtrade Docker image repository
-  tag: "2023.12"  # Docker image version
+  tag: "2024.12"  # Docker image version
   pullPolicy: IfNotPresent  # Pull image only if it's not present locally
 
 # Resources for the Freqtrade pod (optional, uncomment to define)
@@ -74,34 +75,43 @@ resources: {}
 
 # Pod scheduling preferences
 nodeSelector: {}  # Specify node affinity (optional)
+nodeSelector:
+  group: robots
+
 affinity: {}  # Define pod affinity rules (optional)
+
 tolerations: []  # Define tolerations for tainted nodes (optional)
+tolerations:
+  - key: "group"
+    operator: "Equal"
+    value: "robots"
+    effect: "NoSchedule"
 
 # Testing configuration for downloading data, backtesting, and hyperopt
 testing:
 
   # Data download settings
   download_data:
-    enabled: false  # Disable historical data download
+    enabled: true  # Disable historical data download
     days: 31  # Number of days of data to download if enabled
     timeframes:
       - "1d"  # Timeframe for downloaded data
-    dl_trades: false  # Disable trade data download
+    dl_trades: false  # Disable trade data download (slow version)
     pair_whitelist:
       - "BTC/USDT"  # Whitelisted pairs for data download
 
   # Backtesting settings
   backtesting:
-    enabled: false  # Disable backtesting
+    enabled: true  # Disable backtesting
     offset: 0 # Period x days ago
     days: 30  # Number of days to backtest if enabled
     breakdown: "day"  # Breakdown backtest results by day (alternative: month)
-    fee: 0.0005  # Fee applied during backtesting
+    fee: 0.001  # Fee applied during backtesting
     extraArgs: []  # Additional arguments for backtesting (optional)
 
   # Hyperopt settings for strategy optimization
   hyperopt:
-    enabled: true  # Enable hyperoptimization
+    enabled: false  # Enable hyperoptimization
     offset: 0 # Period x days ago
     days: 30  # Number of days of data to use for optimization
     hyperoptStrategy: "SharpeHyperOptLossDaily"
@@ -111,9 +121,9 @@ testing:
       # Additional spaces like trailing, buy, sell can be added as needed
     fee: 0.0005  # Trading fee used for hyperopt
     tries: 30  # Number of hyperopt attempts
-    extraArgs:
-    - "--job-workers"
-    - "1"  # Number of parallel workers for hyperopt
+    extraArgs: []
+    #- "--job-workers"
+    #- "1"  # Number of parallel workers for hyperopt
 
     # Available hyperopt strategies:
     # - ShortTradeDurHyperOptLoss: Legacy Freqtrade hyperoptimization for short trade duration and avoiding losses
@@ -135,17 +145,17 @@ pvc:
     enabled: true  # Enable PVC for storing bot data
     name: freqtrade-pvc-data  # PVC name for data
     size: 1Gi  # PVC size for data storage
-    storageClass: ""  # Optional storage class
+    storageClass: "local-path"  # Optional storage class
     accessMode: ReadWriteOnce  # Access mode (single writer)
     useExistingPVC: false  # Set to true to use an existing PVC
     existingPVCName: ""  # Name of the existing PVC if using one
 
   # Strategy storage
   strategy:
-    enabled: true  # Enable PVC for storing strategies
+    enabled: false  # Enable PVC for storing strategies
     name: freqtrade-pvc-strategy  # PVC name for strategies
     size: 1Gi  # PVC size for strategy storage
-    storageClass: ""  # Optional storage class
+    storageClass: "local-path"  # Optional storage class
     accessMode: ReadWriteOnce  # Access mode (single writer)
     useExistingPVC: false  # Set to true to use an existing PVC
     existingPVCName: ""  # Name of the existing PVC if using one
@@ -182,7 +192,7 @@ strategy: |-
     stoploss = -0.10
 
     # Optimal timeframe for the strategy
-    timeframe = '5m'
+    timeframe = "{{ .Values.config.timeframe }}"
 
     # trailing stoploss
     trailing_stop = False
