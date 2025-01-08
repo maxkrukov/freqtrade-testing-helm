@@ -3,6 +3,36 @@
 
 fullname: "freqtrade01"  # Name for the Freqtrade bot deployment
 
+bot:
+  enabled: true
+
+  # Resources for the Freqtrade pod (optional, uncomment to define)
+  resources: {}
+  #  requests:
+  #    memory: "512Mi"  # Minimum memory allocation
+  #    cpu: "500m"  # Minimum CPU allocation
+  #  limits:
+  #    memory: "1Gi"  # Maximum memory allocation
+  #    cpu: "1"  # Maximum CPU allocation
+
+  # Pod scheduling preferences
+  nodeSelector: {}  # Specify node affinity (optional)
+  affinity: {}  # Define pod affinity rules (optional)
+  tolerations: []  # Define tolerations for tainted nodes (optional)
+
+  service:
+    type: ClusterIP # Can be ClusterIP, NodePort, or LoadBalancer
+
+  ingress:
+    enabled: true
+    annotations:
+      nginx.ingress.kubernetes.io/rewrite-target: /
+      kubernetes.io/tls-acme: "true"
+    hosts:
+      - "example.com" # Replace with your domain
+    tls: true
+    tlsSecretName: freqtrade01-tls
+
 config:
   bot_name: freqtrade  # The name of the bot as used in configuration
 

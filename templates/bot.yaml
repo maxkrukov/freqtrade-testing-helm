@@ -1,0 +1,119 @@
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: testing-bot-{{ .Values.fullname | default "freqtrade" }}
+  labels:
+    app: testing-bot-{{ .Values.fullname | default "freqtrade" }}
+spec:
+  type: {{ .Values.bot.service.type | default "ClusterIP" }}
+  ports:
+    - port: 8080
+      targetPort: 8080
+      protocol: TCP
+      name: http
+  selector:
+    app: testing-bot-{{ .Values.fullname | default "freqtrade" }}
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: testing-bot-{{ .Values.fullname | default "freqtrade" }}
+  annotations:
+    {{- if .Values.bot.ingress.annotations }}
+    {{ toYaml .Values.bot.ingress.annotations | nindent 4 }}
+    {{- end }}
+spec:
+  {{- if .Values.bot.ingress.tls }}
+  tls:
+  - hosts:
+      {{- range .Values.bot.ingress.hosts }}
+      - {{ . }}
+      {{- end }}
+    secretName: {{ .Values.bot.ingress.tlsSecretName }}
+  {{- end }}
+  rules:
+  {{- range .Values.bot.ingress.hosts }}
+  - host: {{ . }}
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: testing-bot-{{ $.Values.fullname | default "freqtrade" }}
+            port:
+              number: 8080
+  {{- end }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: testing-bot-{{ .Values.fullname | default "freqtrade" }}
+  labels:
+    app: testing-bot-{{ .Values.fullname | default "freqtrade" }}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: testing-bot-{{ .Values.fullname | default "freqtrade" }}
+  template:
+    metadata:
+      labels:
+        app: testing-bot-{{ .Values.fullname | default "freqtrade" }}
+    spec:
+      containers:
+      - name: bot
+        image: {{ .Values.image.repository }}:{{ .Values.image.tag }}
+        imagePullPolicy: {{ .Values.image.pullPolicy | default "IfNotPresent" }}
+        command:
+        - freqtrade
+        args:
+        - trade
+        - --config
+        - /freqtrade/config/config.json
+        - --strategy
+        - {{ .Values.strategyName }}
+        - --db-url
+        - sqlite:////tmp/tradesv3.sqlite
+        ports:
+        - name: http
+          containerPort: 8080
+        volumeMounts:
+        - mountPath: /freqtrade/user_data/strategies
+          name: strategy
+        - mountPath: /freqtrade/config/config.json
+          name: configmap
+          subPath: config.json
+        - mountPath: /freqtrade/user_data/strategies/{{ .Values.strategyName }}.py
+          name: configmap
+          subPath: {{ .Values.strategyName }}.py
+        resources:
+          {{- toYaml .Values.bot.resources | nindent 12 }}
+      restartPolicy: Never
+      {{- if .Values.bot.nodeSelector }}
+      nodeSelector:
+        {{ toYaml .Values.bot.nodeSelector | nindent 8 }}
+      {{- end }}
+      {{- if .Values.bot.affinity }}
+      affinity:
+        {{ toYaml .Values.bot.affinity | nindent 8 }}
+      {{- end }}
+      {{- if .Values.bot.tolerations }}
+      tolerations:
+        {{ toYaml .Values.bot.tolerations | nindent 8 }}
+      {{- end }}
+      volumes:
+      - name: strategy
+        {{- if .Values.pvc.strategy.useExistingPVC }}
+        persistentVolumeClaim:
+          claimName: {{ .Values.pvc.strategy.existingPVCName }}
+        {{- else if .Values.pvc.strategy.enabled }}
+        persistentVolumeClaim:
+          claimName: {{ .Values.pvc.strategy.name }}
+        {{- else }}
+        emptyDir: {}
+        {{- end }}
+      - name: configmap
+        configMap:
+          name: freqtrade-config-{{ .Values.fullname }}
