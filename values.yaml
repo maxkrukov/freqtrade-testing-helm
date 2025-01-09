@@ -87,6 +87,16 @@ config:
   pairlists:
   - method: StaticPairList  # Use a static list of trading pairs
 
+  # Bot
+  api_server:
+    enabled: true
+    listen_ip_address: 0.0.0.0
+    listen_port: 8080
+    username: admin
+    password: 'Secret'
+    jwt_secret_key: "yadeZee6being3eBed8Gohr0apoh4yah"
+    CORS_origins: []
+
 # Image settings for the Freqtrade Docker container
 image:
   repository: freqtradeorg/freqtrade  # Freqtrade Docker image repository
@@ -104,17 +114,8 @@ resources: {}
 
 # Pod scheduling preferences
 nodeSelector: {}  # Specify node affinity (optional)
-nodeSelector:
-  group: robots
-
 affinity: {}  # Define pod affinity rules (optional)
-
 tolerations: []  # Define tolerations for tainted nodes (optional)
-tolerations:
-  - key: "group"
-    operator: "Equal"
-    value: "robots"
-    effect: "NoSchedule"
 
 # Testing configuration for downloading data, backtesting, and hyperopt
 testing:
@@ -128,6 +129,10 @@ testing:
     dl_trades: false  # Disable trade data download (slow version)
     pair_whitelist:
       - "BTC/USDT"  # Whitelisted pairs for data download
+    extraArgs:
+    # Use `--prepend` to download data prior to 2024-12-08 00:00:00, 
+    # or `--erase` to redownload all data.
+    - --prepend
 
   # Backtesting settings
   backtesting:

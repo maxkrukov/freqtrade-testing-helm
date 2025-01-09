@@ -91,6 +91,9 @@ spec:
         - /data/{{ .Values.config.exchange.name | default "binance" }}
         - --config
         - /freqtrade/config/config.json
+        {{- with .Values.testing.download_data.extraArgs }}
+        {{ . | toYaml | nindent 8 }}
+        {{- end }}
         volumeMounts:
         - mountPath: /data
           name: data
