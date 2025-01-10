@@ -1,7 +1,7 @@
 ---
 # Freqtrade Helm Chart Configuration
 
-fullname: "freqtrade01"  # Name for the Freqtrade bot deployment
+fullnameOverride: ""
 
 bot:
   enabled: false
