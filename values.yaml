@@ -4,7 +4,7 @@
 fullnameOverride: ""
 
 bot:
-  enabled: false
+  enabled: true
 
   # Resources for the Freqtrade pod (optional, uncomment to define)
   resources: {}
