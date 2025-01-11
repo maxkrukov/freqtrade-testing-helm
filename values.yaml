@@ -6,6 +6,18 @@ fullnameOverride: ""
 bot:
   enabled: false
 
+  rollme: true
+
+  pvc:
+    enabled: true  # Enable PVC for storing bot data
+    size: 1Gi  # PVC size for data storage
+    storageClass: ""  # Optional storage class
+    accessMode: ReadWriteOnce  # Access mode (single writer)
+    useExistingPVC: false  # Set to true to use an existing PVC
+    existingPVCName: ""  # Name of the existing PVC if using one
+
+  dbURL: sqlite:////sql/tradesv3.sqlite
+
   # Resources for the Freqtrade pod (optional, uncomment to define)
   resources: {}
   #  requests:
@@ -43,11 +55,13 @@ config:
 
   tradable_balance_ratio: 0.9999  # Percentage of balance available for trading
   trading_mode: spot  # Trading mode (spot or futures)
+  # margin_mode: "isolated"
+
   use_exit_signal: true  # Enables exit signal for closing trades
 
   # Position adjustment (DCA)
-  position_adjustment_enable: true  # Enables Dollar-Cost Averaging (DCA)
-  max_entry_position_adjustment: 100  # Max number of position adjustments (DCA)
+  position_adjustment_enable: false  # Enables Dollar-Cost Averaging (DCA)
+  max_entry_position_adjustment: 3  # Max number of position adjustments (DCA)
 
   # Dry-run mode settings
   dry_run: true  # Simulate trades without real funds (for testing)
@@ -125,12 +139,12 @@ testing:
     enabled: true  # Disable historical data download
     days: 31  # Number of days of data to download if enabled
     timeframes:
-      - "1d"  # Timeframe for downloaded data
+      - "1d"  # Timeframe for downloaded data (additional)
     dl_trades: false  # Disable trade data download (slow version)
     pair_whitelist:
-      - "BTC/USDT"  # Whitelisted pairs for data download
+      - "BTC/USDT"  # Whitelisted pairs for data download (additional)
     extraArgs:
-    # Use `--prepend` to download data prior to 2024-12-08 00:00:00, 
+    # Use `--prepend` to download data prior, 
     # or `--erase` to redownload all data.
     - --prepend
 
@@ -177,9 +191,8 @@ pvc:
   # Data storage
   data:
     enabled: true  # Enable PVC for storing bot data
-    name: freqtrade-pvc-data  # PVC name for data
     size: 1Gi  # PVC size for data storage
-    storageClass: "local-path"  # Optional storage class
+    storageClass: ""  # Optional storage class
     accessMode: ReadWriteOnce  # Access mode (single writer)
     useExistingPVC: false  # Set to true to use an existing PVC
     existingPVCName: ""  # Name of the existing PVC if using one
@@ -187,12 +200,12 @@ pvc:
   # Strategy storage
   strategy:
     enabled: false  # Enable PVC for storing strategies
-    name: freqtrade-pvc-strategy  # PVC name for strategies
     size: 1Gi  # PVC size for strategy storage
-    storageClass: "local-path"  # Optional storage class
+    storageClass: ""  # Optional storage class
     accessMode: ReadWriteOnce  # Access mode (single writer)
     useExistingPVC: false  # Set to true to use an existing PVC
     existingPVCName: ""  # Name of the existing PVC if using one
+
 
 # Strategy information
 strategyName: Best  # Name of the strategy being used

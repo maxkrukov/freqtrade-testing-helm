@@ -1,4 +1,5 @@
 {{- if .Values.bot.enabled }}
+{{- if .Values.bot.ingress.enabled }}
 ---
 apiVersion: v1
 kind: Service
@@ -46,6 +47,26 @@ spec:
             port:
               number: 8080
   {{- end }}
+{{- end }}
+
+{{- if .Values.bot.pvc.enabled }}
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ include "freqtrade-testing.fullname" . }}-bot
+  labels: {{ include "freqtrade-testing.labels" . | nindent 4 }}
+spec:
+  accessModes:
+    - {{ .Values.bot.pvc.accessMode }}
+  resources:
+    requests:
+      storage: {{ .Values.bot.pvc.size }}
+  {{- if .Values.bot.pvc.storageClass }}
+  storageClassName: {{ .Values.bot.pvc.storageClass }}
+  {{- end }}
+{{- end }}
+
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -59,8 +80,10 @@ spec:
   template:
     metadata:
       labels: {{ include "freqtrade-testing.labels" . | nindent 8 }}
+      {{- if .Values.bot.rollme }}
       annotations:
         rollme: {{ randAlphaNum 5 | quote }}
+      {{- end }}
     spec:
       containers:
       - name: bot
@@ -75,11 +98,13 @@ spec:
         - --strategy
         - {{ .Values.strategyName }}
         - --db-url
-        - sqlite:////tmp/tradesv3.sqlite
+        - {{ .Values.bot.dbURL }}
         ports:
         - name: http
           containerPort: 8080
         volumeMounts:
+        - mountPath: /sql
+          name: sql
         - mountPath: /freqtrade/user_data/strategies
           name: strategy
         - mountPath: /freqtrade/config/config.json
@@ -110,6 +135,16 @@ spec:
         {{- else if .Values.pvc.strategy.enabled }}
         persistentVolumeClaim:
           claimName: {{ include "freqtrade-testing.fullname" . }}-strategy
+        {{- else }}
+        emptyDir: {}
+        {{- end }}
+      - name: sql
+        {{- if .Values.bot.pvc.useExistingPVC }}
+        persistentVolumeClaim:
+          claimName: {{ .Values.bot.pvc.existingPVCName }}
+        {{- else if .Values.bot.pvc.enabled }}
+        persistentVolumeClaim:
+          claimName: {{ include "freqtrade-testing.fullname" . }}-bot
         {{- else }}
         emptyDir: {}
         {{- end }}

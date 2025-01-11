@@ -3,70 +3,11 @@ entries:
   freqtrade-testing:
   - apiVersion: v2
     appVersion: "2024.12"
-    created: "2025-01-11T14:32:42.411760878+01:00"
+    created: "2025-01-11T18:58:01.354409509+01:00"
     description: Freqtrade
-    digest: 6d6f12845f95ffdb539dedfabfdbad95d6cf3f20bc34ba1dd857b92ab62af12a
+    digest: 9f940cb67ea1df6b37ac1de240dd2362296375ad5e116267f2c9aa37977c4f93
     name: freqtrade-testing
     urls:
-    - https://raw.githubusercontent.com/maxkrukov/freqtrade-testing-helm/refs/heads/main/freqtrade-testing-1.0.7.tgz
-    version: 1.0.7
-  - apiVersion: v2
-    appVersion: "2024.12"
-    created: "2025-01-11T14:32:42.410990406+01:00"
-    description: Freqtrade
-    digest: 46e745f017f2fed1d20495459204b8eff86a5efaf05f01189b076284cf149506
-    name: freqtrade-testing
-    urls:
-    - https://raw.githubusercontent.com/maxkrukov/freqtrade-testing-helm/refs/heads/main/freqtrade-testing-1.0.6.tgz
-    version: 1.0.6
-  - apiVersion: v2
-    appVersion: "2024.12"
-    created: "2025-01-11T14:32:42.410120891+01:00"
-    description: Freqtrade
-    digest: 8b624cec31cec12a51492ccae0aa042ce9ae97d9fcf4e5904155c705dc133c1e
-    name: freqtrade-testing
-    urls:
-    - https://raw.githubusercontent.com/maxkrukov/freqtrade-testing-helm/refs/heads/main/freqtrade-testing-1.0.5.tgz
-    version: 1.0.5
-  - apiVersion: v2
-    appVersion: "2024.12"
-    created: "2025-01-11T14:32:42.409173131+01:00"
-    description: Freqtrade
-    digest: fdc8658a9fe71913f3991c3ccacc6313debd719bab3d11ab7fec05872203713a
-    name: freqtrade-testing
-    urls:
-    - https://raw.githubusercontent.com/maxkrukov/freqtrade-testing-helm/refs/heads/main/freqtrade-testing-1.0.4.tgz
-    version: 1.0.4
-  - apiVersion: v2
-    created: "2025-01-11T14:32:42.408180146+01:00"
-    description: Freqtrade
-    digest: 6ad0700a5ea662cca10fa17f47af1578a0f6dc3fe54ab065f2223a78c7750f64
-    name: freqtrade-testing
-    urls:
-    - https://raw.githubusercontent.com/maxkrukov/freqtrade-testing-helm/refs/heads/main/freqtrade-testing-1.0.3.tgz
-    version: 1.0.3
-  - apiVersion: v2
-    created: "2025-01-11T14:32:42.4071916+01:00"
-    description: Freqtrade
-    digest: 0af9aab90c37750be7042fd64ea90e3338dd4c5e2247e6dede3c0c89dac96e3d
-    name: freqtrade-testing
-    urls:
-    - https://raw.githubusercontent.com/maxkrukov/freqtrade-testing-helm/refs/heads/main/freqtrade-testing-1.0.2.tgz
-    version: 1.0.2
-  - apiVersion: v2
-    created: "2025-01-11T14:32:42.405533601+01:00"
-    description: Freqtrade
-    digest: cfade2c5fb967c4cfc4ef03063f8b3a41e7f865788b717346948c0c607e6c86a
-    name: freqtrade-testing
-    urls:
-    - https://raw.githubusercontent.com/maxkrukov/freqtrade-testing-helm/refs/heads/main/freqtrade-testing-1.0.1.tgz
-    version: 1.0.1
-  - apiVersion: v2
-    created: "2025-01-11T14:32:42.403823829+01:00"
-    description: Freqtrade
-    digest: 234eae53a9c78cdd64ddd12e68f5f5d9e10adfa04faac4bd1a3bf2d0d9078f9d
-    name: freqtrade-testing
-    urls:
-    - https://raw.githubusercontent.com/maxkrukov/freqtrade-testing-helm/refs/heads/main/freqtrade-testing-1.0.0.tgz
-    version: 1.0.0
-generated: "2025-01-11T14:32:42.400051597+01:00"
+    - https://raw.githubusercontent.com/maxkrukov/freqtrade-testing-helm/refs/heads/main/freqtrade-testing-2.0.0.tgz
+    version: 2.0.0
+generated: "2025-01-11T18:58:01.35348376+01:00"
