@@ -61,14 +61,15 @@ spec:
 apiVersion: batch/v1
 kind: Job
 metadata:
-  name: {{ include "freqtrade-testing.fullname" . }}-{{ now | unixEpoch }}
+  name: job-{{ include "freqtrade-testing.fullname" . }}-{{ now | unixEpoch }}
   labels:
-    app: {{ include "freqtrade-testing.fullname" . }}-job
+    app: job-{{ include "freqtrade-testing.fullname" . }}
 spec:
   backoffLimit: 0
   template:
-    labels:
-      app: {{ include "freqtrade-testing.fullname" . }}-job
+    metadata:
+      labels:
+        app: job-{{ include "freqtrade-testing.fullname" . }}
     spec:
       initContainers:
       {{- if .Values.testing.download_data.enabled }}
