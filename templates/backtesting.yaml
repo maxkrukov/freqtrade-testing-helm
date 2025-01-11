@@ -242,3 +242,4 @@ spec:
         configMap:
           name: {{ include "freqtrade-testing.fullname" . }}-config
 {{- end }}
+
