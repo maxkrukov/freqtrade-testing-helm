@@ -109,7 +109,11 @@ spec:
           name: strategy
         - mountPath: /freqtrade/config/config.json
           name: configmap
+          {{- if .Values.bot.configOverride.enabled}}
+          subPath: config-bot.json
+          {{- else }}
           subPath: config.json
+          {{- end }}
         - mountPath: /freqtrade/user_data/strategies/{{ .Values.strategyName }}.py
           name: configmap
           subPath: {{ .Values.strategyName }}.py

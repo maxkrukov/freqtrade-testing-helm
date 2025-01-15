@@ -6,7 +6,20 @@ fullnameOverride: ""
 bot:
   enabled: false
 
-  rollme: true
+  rollme: true # Recreate pod during helm upgrade
+
+  configOverride:
+    enabled: true
+    config:
+      # Pairlist configuration
+      pairlists:
+      - method: "MarketCapPairList"
+        number_assets: 100
+        max_rank: 700
+        refresh_period: 86400
+
+      # Dry-run mode settings
+      dry_run: false  # Simulate trades without real funds (for testing)
 
   pvc:
     enabled: true  # Enable PVC for storing bot data
@@ -16,7 +29,7 @@ bot:
     useExistingPVC: false  # Set to true to use an existing PVC
     existingPVCName: ""  # Name of the existing PVC if using one
 
-  dbURL: sqlite:////sql/tradesv3.sqlite
+  dbURL: sqlite:////sql/tradesv3.sqlite  # use /sql folder to persist sqlite db
 
   # Resources for the Freqtrade pod (optional, uncomment to define)
   resources: {}
@@ -43,6 +56,7 @@ bot:
       - "example.com" # Replace with your domain
     tls: true
     tlsSecretName: freqtrade01-tls
+
 
 config:
   bot_name: freqtrade  # The name of the bot as used in configuration

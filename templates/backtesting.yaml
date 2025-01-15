@@ -10,6 +10,14 @@ data:
   {{ .Values.strategyName }}.py: |-
 {{ tpl .Values.strategy . | nindent 4 }}
 
+{{- if .Values.bot.configOverride.enabled}}
+{{- $file1 := .Values.config | toJson | fromJson }}
+{{- $file2 := .Values.bot.configOverride.config | toJson | fromJson }}
+{{- $merged := mergeOverwrite $file1 $file2 }}
+  config-bot.json: |-
+{{- toPrettyJson $merged | nindent 4 }}
+{{- end }}
+
 ---
 
 {{- if and .Values.pvc.data.enabled (not .Values.pvc.data.useExistingPVC) }}
