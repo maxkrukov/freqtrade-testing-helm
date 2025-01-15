@@ -216,7 +216,7 @@ pvc:
     enabled: false  # Enable PVC for storing strategies
     size: 1Gi  # PVC size for strategy storage
     storageClass: ""  # Optional storage class
-    accessMode: ReadWriteOnce  # Access mode (single writer)
+    accessMode: ReadWriteMany  # Access mode (single writer)
     useExistingPVC: false  # Set to true to use an existing PVC
     existingPVCName: ""  # Name of the existing PVC if using one
 

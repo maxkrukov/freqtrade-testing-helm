@@ -3,7 +3,16 @@ entries:
   freqtrade-testing:
   - apiVersion: v2
     appVersion: "2024.12"
-    created: "2025-01-15T14:17:35.188281222+01:00"
+    created: "2025-01-15T20:02:58.546752829+01:00"
+    description: Freqtrade
+    digest: b189d1bc4963b6ebb688e0e453985d746a0f6d1474da320046994e0184d96a68
+    name: freqtrade-testing
+    urls:
+    - https://raw.githubusercontent.com/maxkrukov/freqtrade-testing-helm/refs/heads/main/freqtrade-testing-2.0.2.tgz
+    version: 2.0.2
+  - apiVersion: v2
+    appVersion: "2024.12"
+    created: "2025-01-15T20:02:58.545839931+01:00"
     description: Freqtrade
     digest: ebf6d33f327f567df4977aacda45be5dca474471aaedcd609e70b3d85d44ec1c
     name: freqtrade-testing
@@ -12,11 +21,11 @@ entries:
     version: 2.0.1
   - apiVersion: v2
     appVersion: "2024.12"
-    created: "2025-01-15T14:17:35.187376844+01:00"
+    created: "2025-01-15T20:02:58.544105674+01:00"
     description: Freqtrade
     digest: 9f940cb67ea1df6b37ac1de240dd2362296375ad5e116267f2c9aa37977c4f93
     name: freqtrade-testing
     urls:
     - https://raw.githubusercontent.com/maxkrukov/freqtrade-testing-helm/refs/heads/main/freqtrade-testing-2.0.0.tgz
     version: 2.0.0
-generated: "2025-01-15T14:17:35.186221008+01:00"
+generated: "2025-01-15T20:02:58.542846367+01:00"
