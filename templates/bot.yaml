@@ -85,6 +85,17 @@ spec:
         rollme: {{ randAlphaNum 5 | quote }}
       {{- end }}
     spec:
+      {{- if .Values.bot.pvc.fixRermissions }}
+      initContainers:
+      - name: fix-permissions
+        image: busybox
+        command: ["sh", "-c", "chmod 777 /strategies /sql"]
+        volumeMounts:
+          - name: sql
+            mountPath: /sql
+          - mountPath: /strategies
+            name: strategy
+       {{- end }}
       containers:
       - name: bot
         image: {{ .Values.image.repository }}:{{ .Values.image.tag }}

@@ -80,6 +80,16 @@ spec:
         app: job-{{ include "freqtrade-testing.fullname" . }}
     spec:
       initContainers:
+      {{- if .Values.pvc.fixRermissions }}
+      - name: fix-permissions
+        image: busybox
+        command: ["sh", "-c", "chmod 777 /data /strategies"]
+        volumeMounts:
+          - name: data
+            mountPath: /data
+          - mountPath: /strategies
+            name: strategy
+      {{- end }}
       {{- if .Values.testing.download_data.enabled }}
       - name: download-data
         image: {{ .Values.image.repository }}:{{ .Values.image.tag }}

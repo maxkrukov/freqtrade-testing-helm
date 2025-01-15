@@ -23,6 +23,7 @@ bot:
 
   pvc:
     enabled: true  # Enable PVC for storing bot data
+    fixRermissions: true
     size: 1Gi  # PVC size for data storage
     storageClass: ""  # Optional storage class
     accessMode: ReadWriteOnce  # Access mode (single writer)
@@ -201,6 +202,7 @@ testing:
 
 # Persistent Volume Claims (PVC) for storing data and strategies
 pvc:
+  fixRermissions: true
 
   # Data storage
   data:
