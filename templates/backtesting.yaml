@@ -80,7 +80,7 @@ spec:
         app: job-{{ include "freqtrade-testing.fullname" . }}
     spec:
       initContainers:
-      {{- if .Values.pvc.fixRermissions }}
+      {{- if .Values.pvc.fixPermissions }}
       - name: fix-permissions
         image: busybox
         command: ["sh", "-c", "chmod 777 /data /strategies"]

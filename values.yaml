@@ -19,11 +19,11 @@ bot:
         refresh_period: 86400
 
       # Dry-run mode settings
-      dry_run: false  # Simulate trades without real funds (for testing)
+      dry_run: true  # Simulate trades without real funds (for testing)
 
   pvc:
     enabled: true  # Enable PVC for storing bot data
-    fixRermissions: true
+    fixPermissions: true
     size: 1Gi  # PVC size for data storage
     storageClass: ""  # Optional storage class
     accessMode: ReadWriteOnce  # Access mode (single writer)
@@ -48,15 +48,17 @@ bot:
 
   service:
     type: ClusterIP # Can be ClusterIP, NodePort, or LoadBalancer
+    # port: 8080 # hardcoded
 
   ingress:
     enabled: true
-    annotations:
-      kubernetes.io/tls-acme: "true"
+    ingressClassName: nginx
+    annotations: {}
+    #  kubernetes.io/tls-acme: "true"
     hosts:
       - "example.com" # Replace with your domain
     tls: true
-    tlsSecretName: freqtrade01-tls
+    tlsSecretName: example.com-tls
 
 
 config:
@@ -202,7 +204,7 @@ testing:
 
 # Persistent Volume Claims (PVC) for storing data and strategies
 pvc:
-  fixRermissions: true
+  fixPermissions: true
 
   # Data storage
   data:
@@ -227,6 +229,7 @@ pvc:
 strategyName: Best  # Name of the strategy being used
 
 # Keep this line: "class {{ .Values.strategyName }}(IStrategy):"
+# It is an example. Do not use it in live mode.
 strategy: |-
  # --- Do not remove these libs ---
  from freqtrade.strategy import IStrategy

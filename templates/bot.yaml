@@ -34,6 +34,7 @@ spec:
       {{- end }}
     secretName: {{ .Values.bot.ingress.tlsSecretName }}
   {{- end }}
+  ingressClassName: {{ .Values.bot.ingress.ingressClassName }}
   rules:
   {{- range .Values.bot.ingress.hosts }}
   - host: {{ . }}
@@ -75,6 +76,8 @@ metadata:
   labels: {{ include "freqtrade-testing.labels" . | nindent 4 }}
 spec:
   replicas: 1
+  strategy:
+    type: Recreate
   selector:
     matchLabels: {{ include "freqtrade-testing.labels" . | nindent 6 }}
   template:
@@ -85,7 +88,7 @@ spec:
         rollme: {{ randAlphaNum 5 | quote }}
       {{- end }}
     spec:
-      {{- if .Values.bot.pvc.fixRermissions }}
+      {{- if .Values.bot.pvc.fixPermissions }}
       initContainers:
       - name: fix-permissions
         image: busybox
