@@ -168,6 +168,23 @@ testing:
   # Backtesting settings
   backtesting:
     enabled: true  # Disable backtesting
+    ui:
+      enabled: false
+      extraArgs: []
+      service:
+        type: ClusterIP # Can be ClusterIP, NodePort, or LoadBalancer
+        # port: 8080 # hardcoded
+
+      ingress:
+        enabled: true
+        ingressClassName: nginx
+        annotations: {}
+        #  kubernetes.io/tls-acme: "true"
+        hosts:
+          - "example.com" # Replace with your domain
+        tls: true
+        tlsSecretName: example.com-tls
+
     offset: 0 # Period x days ago
     days: 30  # Number of days to backtest if enabled
     breakdown: "day"  # Breakdown backtest results by day (alternative: month)
