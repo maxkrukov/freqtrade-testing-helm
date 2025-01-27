@@ -92,10 +92,10 @@ spec:
       initContainers:
       - name: fix-permissions
         image: busybox
-        command: ["sh", "-c", "chmod 777 /strategies /sql"]
+        command: ["sh", "-c", "chmod 777 /strategies /botdata"]
         volumeMounts:
-          - name: sql
-            mountPath: /sql
+          - name: bot-data
+            mountPath: /botdata
           - mountPath: /strategies
             name: strategy
        {{- end }}
@@ -113,12 +113,15 @@ spec:
         - {{ .Values.strategyName }}
         - --db-url
         - {{ .Values.bot.dbURL }}
+        {{- with .Values.bot.extraArgs }}
+        {{ . | toYaml | nindent 8 }}
+        {{- end }}
         ports:
         - name: http
           containerPort: 8080
         volumeMounts:
-        - mountPath: /sql
-          name: sql
+        - mountPath: /freqtrade/user_data
+          name: bot-data
         - mountPath: /freqtrade/user_data/strategies
           name: strategy
         - mountPath: /freqtrade/config/config.json
@@ -146,6 +149,16 @@ spec:
         {{ toYaml .Values.bot.tolerations | nindent 8 }}
       {{- end }}
       volumes:
+      - name: bot-data
+        {{- if .Values.bot.pvc.useExistingPVC }}
+        persistentVolumeClaim:
+          claimName: {{ .Values.bot.pvc.existingPVCName }}
+        {{- else if .Values.bot.pvc.enabled }}
+        persistentVolumeClaim:
+          claimName: {{ include "freqtrade-testing.fullname" . }}-bot
+        {{- else }}
+        emptyDir: {}
+        {{- end }}
       - name: strategy
         {{- if .Values.pvc.strategy.useExistingPVC }}
         persistentVolumeClaim:
@@ -153,16 +166,6 @@ spec:
         {{- else if .Values.pvc.strategy.enabled }}
         persistentVolumeClaim:
           claimName: {{ include "freqtrade-testing.fullname" . }}-strategy
-        {{- else }}
-        emptyDir: {}
-        {{- end }}
-      - name: sql
-        {{- if .Values.bot.pvc.useExistingPVC }}
-        persistentVolumeClaim:
-          claimName: {{ .Values.bot.pvc.existingPVCName }}
-        {{- else if .Values.bot.pvc.enabled }}
-        persistentVolumeClaim:
-          claimName: {{ include "freqtrade-testing.fullname" . }}-bot
         {{- else }}
         emptyDir: {}
         {{- end }}

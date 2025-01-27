@@ -66,7 +66,8 @@ spec:
 {{- $ho := printf "-%dh" (mul 24 .Values.testing.hyperopt.offset ) }}
 
 ---
-{{- if .Values.testing.backtesting.ui.enabled }}
+{{- if .Values.testing.enabled }}
+{{- if and .Values.testing.backtesting.ui.enabled .Values.testing.backtesting.enabled }}
 apiVersion: apps/v1
 kind: Deployment
 {{- else }}
@@ -80,7 +81,8 @@ metadata:
 spec:
   {{- if (not .Values.testing.backtesting.ui.enabled) }}
   backoffLimit: 0
-  {{- else }}
+  {{- end }}
+  {{- if and .Values.testing.backtesting.ui.enabled .Values.testing.backtesting.enabled }}
   replicas: 1
   selector:
     matchLabels:
@@ -130,6 +132,8 @@ spec:
         {{- with .Values.testing.download_data.extraArgs }}
         {{ . | toYaml | nindent 8 }}
         {{- end }}
+        resources:
+          {{- toYaml .Values.testing.download_data.resources | nindent 12 }}
         volumeMounts:
         - mountPath: /data
           name: data
@@ -189,7 +193,7 @@ spec:
           name: configmap
           subPath: {{ .Values.strategyName }}.py
         resources:
-          {{- toYaml .Values.resources | nindent 12 }}
+          {{- toYaml .Values.testing.hyperopt.resources | nindent 12 }}
       {{- end }}
 
       {{- if and (not .Values.testing.backtesting.ui.enabled) .Values.testing.backtesting.enabled .Values.testing.hyperopt.enabled }}
@@ -237,7 +241,7 @@ spec:
         - mountPath: /freqtrade/user_data/backtest_results
           name: results
         resources:
-          {{- toYaml .Values.resources | nindent 12 }}
+          {{- toYaml .Values.testing.backtesting.resources | nindent 12 }}
       {{- if .Values.testing.backtesting.ui.enabled }}
       containers:
       - name: backtesting-ui
@@ -276,9 +280,14 @@ spec:
       {{- end }}
       {{- end }}
 
-      {{- if (not .Values.testing.backtesting.ui.enabled) }}
+      {{- if and (not .Values.testing.backtesting.ui.enabled) .Values.testing.backtesting.enabled }}
       restartPolicy: Never
       {{- end }}
+
+      {{- if .Values.testing.hyperopt.enabled }}
+      restartPolicy: Always
+      {{- end }}
+
 
       {{- if .Values.nodeSelector }}
       nodeSelector:
@@ -376,7 +385,7 @@ spec:
   {{- end }}
 {{- end }}
 {{- end }}
-
+{{- end }}
 
 
 

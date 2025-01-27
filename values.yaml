@@ -21,6 +21,14 @@ bot:
       # Dry-run mode settings
       dry_run: true  # Simulate trades without real funds (for testing)
 
+  extraArgs: []
+  #- --freqaimodel
+  #- PyTorchMLPRegressor
+
+  resources: {}
+  #  limits:
+  #    nvidia.com/gpu: 1
+
   pvc:
     enabled: true  # Enable PVC for storing bot data
     fixPermissions: true
@@ -30,16 +38,7 @@ bot:
     useExistingPVC: false  # Set to true to use an existing PVC
     existingPVCName: ""  # Name of the existing PVC if using one
 
-  dbURL: sqlite:////sql/tradesv3.sqlite  # use /sql folder to persist sqlite db
-
-  # Resources for the Freqtrade pod (optional, uncomment to define)
-  resources: {}
-  #  requests:
-  #    memory: "512Mi"  # Minimum memory allocation
-  #    cpu: "500m"  # Minimum CPU allocation
-  #  limits:
-  #    memory: "1Gi"  # Maximum memory allocation
-  #    cpu: "1"  # Maximum CPU allocation
+  dbURL: sqlite:////freqtrade/user_data/tradesv3.sqlite
 
   # Pod scheduling preferences
   nodeSelector: {}  # Specify node affinity (optional)
@@ -134,15 +133,6 @@ image:
   tag: "2024.12"  # Docker image version
   pullPolicy: IfNotPresent  # Pull image only if it's not present locally
 
-# Resources for the Freqtrade pod (optional, uncomment to define)
-resources: {}
-#  requests:
-#    memory: "512Mi"  # Minimum memory allocation
-#    cpu: "500m"  # Minimum CPU allocation
-#  limits:
-#    memory: "1Gi"  # Maximum memory allocation
-#    cpu: "1"  # Maximum CPU allocation
-
 # Pod scheduling preferences
 nodeSelector: {}  # Specify node affinity (optional)
 affinity: {}  # Define pod affinity rules (optional)
@@ -150,6 +140,7 @@ tolerations: []  # Define tolerations for tainted nodes (optional)
 
 # Testing configuration for downloading data, backtesting, and hyperopt
 testing:
+  enabled: true
 
   # Data download settings
   download_data:
@@ -164,6 +155,9 @@ testing:
     # Use `--prepend` to download data prior, 
     # or `--erase` to redownload all data.
     - --prepend
+    resources: {}
+    #  limits:
+    #    nvidia.com/gpu: 1
 
   # Backtesting settings
   backtesting:
@@ -176,7 +170,7 @@ testing:
         # port: 8080 # hardcoded
 
       ingress:
-        enabled: true
+        enabled: false
         ingressClassName: nginx
         annotations: {}
         #  kubernetes.io/tls-acme: "true"
@@ -190,6 +184,9 @@ testing:
     breakdown: "day"  # Breakdown backtest results by day (alternative: month)
     fee: 0.001  # Fee applied during backtesting
     extraArgs: []  # Additional arguments for backtesting (optional)
+    resources: {}
+    #  limits:
+    #    nvidia.com/gpu: 1
 
   # Hyperopt settings for strategy optimization
   hyperopt:
@@ -203,6 +200,9 @@ testing:
       # Additional spaces like trailing, buy, sell can be added as needed
     fee: 0.0005  # Trading fee used for hyperopt
     tries: 30  # Number of hyperopt attempts
+    resources: {}
+    #  limits:
+    #    nvidia.com/gpu: 1
     extraArgs: []
     #- "--job-workers"
     #- "1"  # Number of parallel workers for hyperopt
@@ -236,8 +236,8 @@ pvc:
   strategy:
     enabled: false  # Enable PVC for storing strategies
     size: 1Gi  # PVC size for strategy storage
-    storageClass: ""  # Optional storage class
-    accessMode: ReadWriteMany  # Access mode (single writer)
+    storageClass: "nfs"  # Optional storage class
+    accessMode: ReadWriteMany  # Access mode
     useExistingPVC: false  # Set to true to use an existing PVC
     existingPVCName: ""  # Name of the existing PVC if using one
 
