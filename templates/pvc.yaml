@@ -1,0 +1,19 @@
+{{- if .Values.pvc.sharedData.enabled  }}
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ include "freqtrade-testing.fullname" . }}-shared-data
+  labels: {{ include "freqtrade-testing.labels" . | nindent 4 }}
+spec:
+  accessModes:
+    - {{ .Values.pvc.sharedData.accessMode }}
+  resources:
+    requests:
+      storage: {{ .Values.pvc.sharedData.size }}
+  {{- if .Values.pvc.sharedData.storageClass }}
+  storageClassName: {{ .Values.pvc.sharedData.storageClass }}
+  {{- end }}
+{{- end }}
+
+

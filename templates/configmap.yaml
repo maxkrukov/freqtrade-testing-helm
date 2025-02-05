@@ -1,0 +1,20 @@
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "freqtrade-testing.fullname" . }}-config
+  labels: {{ include "freqtrade-testing.labels" . | nindent 4 }}
+data:
+  config.json: |-
+{{ toPrettyJson .Values.config | nindent 4 }}
+  {{ .Values.strategyName }}{{ .Values.config.timeframe }}.py: |-
+{{ tpl .Values.strategy . | nindent 4 }}
+
+{{- if .Values.bot.configOverride.enabled}}
+{{- $file1 := .Values.config | toJson | fromJson }}
+{{- $file2 := .Values.bot.configOverride.config | toJson | fromJson }}
+{{- $merged := mergeOverwrite $file1 $file2 }}
+  config-bot.json: |-
+{{- toPrettyJson $merged | nindent 4 }}
+{{- end }}
+

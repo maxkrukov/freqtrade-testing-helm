@@ -1,3 +1,4 @@
 install.sh
+templates/testing-ui.yaml_
 *.tgz
 .git

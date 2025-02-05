@@ -1,87 +1,95 @@
 ---
 # Freqtrade Helm Chart Configuration
 
+# Override the full name of the release
 fullnameOverride: ""
 
+# Bot configuration
 bot:
-  enabled: false
+  enabled: false  # Enable or disable the bot deployment
 
-  rollme: true # Recreate pod during helm upgrade
+  rollme: true  # Recreate the pod during helm upgrade to apply changes
 
   configOverride:
-    enabled: true
+    enabled: false  # Enable custom configuration override
     config:
       # Pairlist configuration
       pairlists:
-      - method: "MarketCapPairList"
-        number_assets: 100
-        max_rank: 700
-        refresh_period: 86400
+        - method: "VolumePairList"  # Use volume-based pair selection
+          number_assets: 100  # Number of assets to include in the pairlist
+          sort_key: "quoteVolume"  # Sort pairs by quote volume
+          min_value: 0  # Minimum volume threshold for inclusion
+          refresh_period: 86400  # Refresh period for the pairlist in seconds
+          lookback_days: 7  # Number of days to look back for volume data
 
       # Dry-run mode settings
-      dry_run: true  # Simulate trades without real funds (for testing)
+      dry_run: true  # Simulate trades without using real funds (for testing)
 
-  extraArgs: []
+  extraArgs: []  # Additional command-line arguments for the bot
+  # Example:
   #- --freqaimodel
   #- PyTorchMLPRegressor
 
-  resources: {}
+  resources: {}  # Resource limits and requests for the bot container
+  # Example:
   #  limits:
-  #    nvidia.com/gpu: 1
+  #    nvidia.com/gpu: 1  # Request GPU resources if available
 
   pvc:
-    enabled: true  # Enable PVC for storing bot data
-    fixPermissions: true
-    size: 1Gi  # PVC size for data storage
-    storageClass: ""  # Optional storage class
-    accessMode: ReadWriteOnce  # Access mode (single writer)
-    useExistingPVC: false  # Set to true to use an existing PVC
-    existingPVCName: ""  # Name of the existing PVC if using one
+    enabled: false  # Enable Persistent Volume Claim for bot data storage
+    # Mounts to /freqtrade/user_data
+    fixPermissions: true  # Fix permissions for the mounted volume
+    size: 1Gi  # Size of the PVC for data storage
+    storageClass: ""  # Optional storage class for the PVC
+    accessMode: ReadWriteOnce  # Access mode for the PVC (single writer)
+    useExistingPVC: false  # Use an existing PVC instead of creating a new one
+    existingPVCName: ""  # Name of the existing PVC if useExistingPVC is true
 
-  dbURL: sqlite:////freqtrade/user_data/tradesv3.sqlite
+  dbURL: sqlite:////freqtrade/user_data/tradesv3.sqlite  # Database URL for trade data
 
   # Pod scheduling preferences
-  nodeSelector: {}  # Specify node affinity (optional)
-  affinity: {}  # Define pod affinity rules (optional)
-  tolerations: []  # Define tolerations for tainted nodes (optional)
-
-  service:
-    type: ClusterIP # Can be ClusterIP, NodePort, or LoadBalancer
-    # port: 8080 # hardcoded
+  nodeSelector: {}  # Specify node affinity for pod scheduling
+  affinity: {}  # Define pod affinity/anti-affinity rules
+  tolerations: []  # Define tolerations for tainted nodes
 
   ingress:
-    enabled: true
-    ingressClassName: nginx
-    annotations: {}
-    #  kubernetes.io/tls-acme: "true"
+    enabled: false  # Enable ingress for external access to the bot
+    ingressClassName: nginx  # Ingress class name
+    annotations: {}  # Additional annotations for the ingress
+    # Example:
+    #  kubernetes.io/tls-acme: "true"  # Enable TLS using cert-manager
     hosts:
-      - "example.com" # Replace with your domain
-    tls: true
-    tlsSecretName: example.com-tls
+      - "example.com"  # Replace with your domain
+    tls: true  # Enable TLS for the ingress
+    tlsSecretName: freqtrade-bot-tls  # Name of the TLS secret
 
-
+# Global configuration for the bot
 config:
-  bot_name: freqtrade  # The name of the bot as used in configuration
+  bot_name: freqtrade  # Name of the bot as used in configuration
+  initial_state: running  # Initial state of the bot (running or stopped)
 
   # Trade settings
-  max_open_trades: 1  # Max number of simultaneous open trades
+  max_open_trades: -1  # Maximum number of simultaneous open trades (-1 for unlimited)
   stake_amount: 100  # Amount to stake per trade in the defined currency
-  stake_currency: USDT  # The currency used for staking, e.g., USDT, BTC, ETH
-  timeframe: 5m  # Trading timeframe (e.g., 5m for 5 minutes)
+  stake_currency: USDT  # Currency used for staking (e.g., USDT, BTC, ETH)
+  timeframe: 1h  # Trading timeframe (e.g., 5m for 5 minutes)
 
-  tradable_balance_ratio: 0.9999  # Percentage of balance available for trading
-  trading_mode: spot  # Trading mode (spot or futures)
-  # margin_mode: "isolated"
+  tradable_balance_ratio: 0.999  # Percentage of balance available for trading
+  trading_mode: "futures"  # Trading mode (spot or futures)
+  margin_mode: "isolated"  # Margin mode (isolated or cross)
 
-  use_exit_signal: true  # Enables exit signal for closing trades
+  use_exit_signal: true  # Enable exit signals for closing trades
+  process_only_new_candles: true  # Process only new candles for efficiency
+  trailing_stop: false  # Enable trailing stop-loss
+  force_entry_enable: true  # Allow forced entry into trades
 
   # Position adjustment (DCA)
-  position_adjustment_enable: false  # Enables Dollar-Cost Averaging (DCA)
-  max_entry_position_adjustment: 3  # Max number of position adjustments (DCA)
+  position_adjustment_enable: true  # Enable Dollar-Cost Averaging (DCA)
+  max_entry_position_adjustment: 100  # Maximum number of position adjustments (DCA)
 
   # Dry-run mode settings
   dry_run: true  # Simulate trades without real funds (for testing)
-  dry_run_wallet: 1000  # Initial wallet balance for dry-run mode
+  dry_run_wallet: 10000  # Initial wallet balance for dry-run mode
 
   # Entry pricing strategy
   entry_pricing:
@@ -104,106 +112,79 @@ config:
     name: binance  # The exchange to use (e.g., Binance)
     ccxt_async_config:
       enableRateLimit: false  # Disable rate limiting for async requests
-      rateLimit: 100  # Limit for async requests
+      rateLimit: 100  # Rate limit for async requests
     ccxt_config:
       enableRateLimit: false  # Disable rate limiting for synchronous requests
-      rateLimit: 100  # Limit for synchronous requests
+      rateLimit: 100  # Rate limit for synchronous requests
     log_responses: false  # Disable logging of exchange responses for reduced verbosity
     pair_blacklist: []  # List of pairs to avoid (currently empty)
-    pair_whitelist:
-    - "ETH/USDT"  # The pair to trade (add more pairs if needed)
+    pair_whitelist: []  # List of pairs to trade (currently empty)
 
   # Pairlist configuration
   pairlists:
   - method: StaticPairList  # Use a static list of trading pairs
 
-  # Bot
-  api_server:
-    enabled: true
-    listen_ip_address: 0.0.0.0
-    listen_port: 8080
-    username: admin
-    password: 'Secret'
-    jwt_secret_key: "yadeZee6being3eBed8Gohr0apoh4yah"
-    CORS_origins: []
-
 # Image settings for the Freqtrade Docker container
 image:
   repository: freqtradeorg/freqtrade  # Freqtrade Docker image repository
-  tag: "2024.12"  # Docker image version
+  tag: "stable"  # Docker image version
   pullPolicy: IfNotPresent  # Pull image only if it's not present locally
 
 # Pod scheduling preferences
-nodeSelector: {}  # Specify node affinity (optional)
-affinity: {}  # Define pod affinity rules (optional)
-tolerations: []  # Define tolerations for tainted nodes (optional)
+nodeSelector: {}  # Specify node affinity for pod scheduling
+affinity: {}  # Define pod affinity/anti-affinity rules
+tolerations: []  # Define tolerations for tainted nodes
 
 # Testing configuration for downloading data, backtesting, and hyperopt
 testing:
-  enabled: true
+  enabled: false  # Enable or disable testing features
 
   # Data download settings
   download_data:
-    enabled: true  # Disable historical data download
-    days: 31  # Number of days of data to download if enabled
+    enabled: true  # Enable historical data download
+    days: 31  # Number of days of data to download
     timeframes:
-      - "1d"  # Timeframe for downloaded data (additional)
+      - "1d"  # Timeframe for downloaded data
     dl_trades: false  # Disable trade data download (slow version)
     pair_whitelist:
-      - "BTC/USDT"  # Whitelisted pairs for data download (additional)
+      - "BTC/USDT"  # Whitelisted pairs for data download
     extraArgs:
     # Use `--prepend` to download data prior, 
     # or `--erase` to redownload all data.
     - --prepend
-    resources: {}
-    #  limits:
-    #    nvidia.com/gpu: 1
+    resources: {}  # Resource limits for data download
 
   # Backtesting settings
   backtesting:
-    enabled: true  # Disable backtesting
-    ui:
-      enabled: false
-      extraArgs: []
-      service:
-        type: ClusterIP # Can be ClusterIP, NodePort, or LoadBalancer
-        # port: 8080 # hardcoded
-
-      ingress:
-        enabled: false
-        ingressClassName: nginx
-        annotations: {}
-        #  kubernetes.io/tls-acme: "true"
-        hosts:
-          - "example.com" # Replace with your domain
-        tls: true
-        tlsSecretName: example.com-tls
-
-    offset: 0 # Period x days ago
-    days: 30  # Number of days to backtest if enabled
+    enabled: true  # Enable backtesting
+    offset: 0  # Period x days ago
+    days: 30  # Number of days to backtest
     breakdown: "day"  # Breakdown backtest results by day (alternative: month)
     fee: 0.001  # Fee applied during backtesting
-    extraArgs: []  # Additional arguments for backtesting (optional)
-    resources: {}
+    extraArgs: []  # Additional arguments for backtesting
+    resources: {}  # Resource limits for backtesting
+    # Example:
     #  limits:
-    #    nvidia.com/gpu: 1
+    #    nvidia.com/gpu: 1  # Request GPU resources if available
 
   # Hyperopt settings for strategy optimization
   hyperopt:
     enabled: false  # Enable hyperoptimization
-    offset: 0 # Period x days ago
+    offset: 0  # Period x days ago
     days: 30  # Number of days of data to use for optimization
-    hyperoptStrategy: "SharpeHyperOptLossDaily"
+    hyperoptStrategy: "SharpeHyperOptLossDaily"  # Hyperopt strategy to use
     spaces:
       - roi  # Optimize return on investment
       - stoploss  # Optimize stoploss parameters
       # Additional spaces like trailing, buy, sell can be added as needed
     fee: 0.0005  # Trading fee used for hyperopt
     tries: 30  # Number of hyperopt attempts
-    resources: {}
+    resources: {}  # Resource limits for hyperopt
+    # Example:
     #  limits:
-    #    nvidia.com/gpu: 1
-    extraArgs: []
+    #    nvidia.com/gpu: 1  # Request GPU resources if available
+    extraArgs: []  # Additional arguments for hyperopt
+    # Example:
     #- "--job-workers"
     #- "1"  # Number of parallel workers for hyperopt
 
@@ -219,28 +200,36 @@ testing:
     # - CalmarHyperOptLoss: Optimizes Calmar Ratio using returns relative to max drawdown
     # - ProfitDrawDownHyperOptLoss: Optimizes for maximum profit while minimizing drawdown. Adjustable via DRAWDOWN_MULT.
 
+  ui:
+    enabled: false  # Enable or disable the Freqtrade UI
+    extraArgs: []  # Additional arguments for the UI
+
+    resources: {}  # Resource limits for the UI
+    # Example:
+    #  limits:
+    #    nvidia.com/gpu: 1  # Request GPU resources if available
+
+    ingress:
+      enabled: false  # Enable ingress for external access to the UI
+      ingressClassName: nginx  # Ingress class name
+      annotations: {}  # Additional annotations for the ingress
+      # Example:
+      #  kubernetes.io/tls-acme: "true"  # Enable TLS using cert-manager
+      hosts:
+        - "example.com"  # Replace with your domain
+      tls: true  # Enable TLS for the ingress
+      tlsSecretName: freqtrade-ui-tls  # Name of the TLS secret
+
 # Persistent Volume Claims (PVC) for storing data and strategies
 pvc:
-  fixPermissions: true
-
-  # Data storage
-  data:
-    enabled: true  # Enable PVC for storing bot data
-    size: 1Gi  # PVC size for data storage
-    storageClass: ""  # Optional storage class
-    accessMode: ReadWriteOnce  # Access mode (single writer)
-    useExistingPVC: false  # Set to true to use an existing PVC
-    existingPVCName: ""  # Name of the existing PVC if using one
-
-  # Strategy storage
-  strategy:
-    enabled: false  # Enable PVC for storing strategies
-    size: 1Gi  # PVC size for strategy storage
-    storageClass: "nfs"  # Optional storage class
-    accessMode: ReadWriteMany  # Access mode
-    useExistingPVC: false  # Set to true to use an existing PVC
-    existingPVCName: ""  # Name of the existing PVC if using one
-
+  sharedData:
+    enabled: false  # Enable PVC for storing bot data
+    fixPermissions: true  # Fix permissions for the mounted volume
+    size: 1Gi  # Size of the PVC for data storage
+    storageClass: "nfs"  # Optional storage class for the PVC
+    accessMode: ReadWriteMany  # Access mode for the PVC (multiple writers)
+    useExistingPVC: false  # Use an existing PVC instead of creating a new one
+    existingPVCName: ""  # Name of the existing PVC if useExistingPVC is true
 
 # Strategy information
 strategyName: Best  # Name of the strategy being used

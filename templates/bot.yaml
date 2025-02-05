@@ -7,7 +7,7 @@ metadata:
   name: {{ include "freqtrade-testing.fullname" . }}-svc
   labels: {{ include "freqtrade-testing.labels" . | nindent 4 }}
 spec:
-  type: {{ .Values.bot.service.type | default "ClusterIP" }}
+  type: ClusterIP
   ports:
     - port: 8080
       targetPort: 8080
@@ -92,12 +92,12 @@ spec:
       initContainers:
       - name: fix-permissions
         image: busybox
-        command: ["sh", "-c", "chmod 777 /strategies /botdata"]
+        command: ["sh", "-c", "chmod 777 /data /botdata"]
         volumeMounts:
           - name: bot-data
             mountPath: /botdata
-          - mountPath: /strategies
-            name: strategy
+          - mountPath: /data
+            name: shared-data
        {{- end }}
       containers:
       - name: bot
@@ -110,7 +110,7 @@ spec:
         - --config
         - /freqtrade/config/config.json
         - --strategy
-        - {{ .Values.strategyName }}
+        - {{ .Values.strategyName }}{{ .Values.config.timeframe }}
         - --db-url
         - {{ .Values.bot.dbURL }}
         {{- with .Values.bot.extraArgs }}
@@ -122,8 +122,15 @@ spec:
         volumeMounts:
         - mountPath: /freqtrade/user_data
           name: bot-data
+        #- mountPath: /data
+        #  name: shared-data
+        #  subPath: data
         - mountPath: /freqtrade/user_data/strategies
-          name: strategy
+          name: shared-data
+          subPath: strategies
+        #- mountPath: /freqtrade/user_data/backtest_results
+        #  name: shared-data
+        #  subPath: backtest_results
         - mountPath: /freqtrade/config/config.json
           name: configmap
           {{- if .Values.bot.configOverride.enabled}}
@@ -131,9 +138,9 @@ spec:
           {{- else }}
           subPath: config.json
           {{- end }}
-        - mountPath: /freqtrade/user_data/strategies/{{ .Values.strategyName }}.py
+        - mountPath: /freqtrade/user_data/strategies/{{ .Values.strategyName }}{{ .Values.config.timeframe }}.py
           name: configmap
-          subPath: {{ .Values.strategyName }}.py
+          subPath: {{ .Values.strategyName }}{{ .Values.config.timeframe }}.py
         resources:
           {{- toYaml .Values.bot.resources | nindent 12 }}
       {{- if .Values.bot.nodeSelector }}
@@ -159,13 +166,13 @@ spec:
         {{- else }}
         emptyDir: {}
         {{- end }}
-      - name: strategy
-        {{- if .Values.pvc.strategy.useExistingPVC }}
+      - name: shared-data
+        {{- if .Values.pvc.sharedData.useExistingPVC }}
         persistentVolumeClaim:
-          claimName: {{ .Values.pvc.strategy.existingPVCName }}
-        {{- else if .Values.pvc.strategy.enabled }}
+          claimName: {{ .Values.pvc.sharedData.existingPVCName }}
+        {{- else if .Values.pvc.sharedData.enabled }}
         persistentVolumeClaim:
-          claimName: {{ include "freqtrade-testing.fullname" . }}-strategy
+          claimName: {{ include "freqtrade-testing.fullname" . }}-shared-data
         {{- else }}
         emptyDir: {}
         {{- end }}
