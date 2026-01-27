@@ -1,0 +1,5 @@
+apiVersion: v2
+description: Freqtrade
+name: freqtrade-testing
+version: 3.0.0
+appVersion: "stable"

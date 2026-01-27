@@ -1,0 +1,11 @@
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "freqtrade-testing.fullname" . }}-config
+  labels: {{ include "freqtrade-testing.labels" . | nindent 4 }}
+data:
+{{- range .Values.strategies }}
+  {{ . }}: |-
+{{ ($.Files.Get (printf "strategies/%s" .)) | nindent 4 }}
+{{- end }}

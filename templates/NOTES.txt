@@ -1,0 +1,24 @@
+{{- if and .Values.testing.enabled .Values.testing.ui.enabled }}
+Freqtrade testing UI is enabled.
+
+1) Port-forward the UI service:
+  kubectl -n {{ .Release.Namespace }} port-forward svc/{{ include "freqtrade-testing.fullname" . }}-ui 8080:8080
+
+2) Open the UI in your browser:
+  http://127.0.0.1:8080
+
+API credentials:
+- Username: {{ .Values.config.api_server.username | default "admin" }}
+- Password:
+  kubectl -n {{ .Release.Namespace }} get secret {{ include "freqtrade-testing.fullname" . }}-api -o jsonpath='{.data.password}' | base64 -d; echo
+
+{{- if .Values.testing.ui.ingress.enabled }}
+Ingress is enabled. Hosts:
+{{- range .Values.testing.ui.ingress.hosts }}
+- http://{{ . }}
+{{- end }}
+{{- end }}
+{{- else }}
+Testing UI is disabled. Enable it with:
+  --set testing.enabled=true --set testing.ui.enabled=true
+{{- end }}
