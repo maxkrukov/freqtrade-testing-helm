@@ -4,88 +4,36 @@
 # Override the full name of the release
 fullnameOverride: ""
 
-# Bot configuration
-bot:
-  enabled: false  # Enable or disable the bot deployment
-
-  rollme: true  # Recreate the pod during helm upgrade to apply changes
-
-  configOverride:
-    enabled: false  # Enable custom configuration override
-    config:
-      # Pairlist configuration
-      pairlists:
-        - method: "VolumePairList"  # Use volume-based pair selection
-          number_assets: 100  # Number of assets to include in the pairlist
-          sort_key: "quoteVolume"  # Sort pairs by quote volume
-          min_value: 0  # Minimum volume threshold for inclusion
-          refresh_period: 86400  # Refresh period for the pairlist in seconds
-          lookback_days: 7  # Number of days to look back for volume data
-
-      # Dry-run mode settings
-      dry_run: true  # Simulate trades without using real funds (for testing)
-
-  extraArgs: []  # Additional command-line arguments for the bot
-  # Example:
-  #- --freqaimodel
-  #- PyTorchMLPRegressor
-
-  resources: {}  # Resource limits and requests for the bot container
-  # Example:
-  #  limits:
-  #    nvidia.com/gpu: 1  # Request GPU resources if available
-
-  pvc:
-    enabled: false  # Enable Persistent Volume Claim for bot data storage
-    # Mounts to /freqtrade/user_data
-    fixPermissions: true  # Fix permissions for the mounted volume
-    size: 1Gi  # Size of the PVC for data storage
-    storageClass: ""  # Optional storage class for the PVC
-    accessMode: ReadWriteOnce  # Access mode for the PVC (single writer)
-    useExistingPVC: false  # Use an existing PVC instead of creating a new one
-    existingPVCName: ""  # Name of the existing PVC if useExistingPVC is true
-
-  dbURL: sqlite:////freqtrade/user_data/tradesv3.sqlite  # Database URL for trade data
-
-  # Pod scheduling preferences
-  nodeSelector: {}  # Specify node affinity for pod scheduling
-  affinity: {}  # Define pod affinity/anti-affinity rules
-  tolerations: []  # Define tolerations for tainted nodes
-
-  ingress:
-    enabled: false  # Enable ingress for external access to the bot
-    ingressClassName: nginx  # Ingress class name
-    annotations: {}  # Additional annotations for the ingress
-    # Example:
-    #  kubernetes.io/tls-acme: "true"  # Enable TLS using cert-manager
-    hosts:
-      - "example.com"  # Replace with your domain
-    tls: true  # Enable TLS for the ingress
-    tlsSecretName: freqtrade-bot-tls  # Name of the TLS secret
-
 # Global configuration for the bot
 config:
   bot_name: freqtrade  # Name of the bot as used in configuration
   initial_state: running  # Initial state of the bot (running or stopped)
+  api_server:
+    enabled: true  # Enable API server (required for UI)
+    listen_ip_address: "0.0.0.0"  # Bind address for API server
+    listen_port: 8080  # API server port
+    verbosity: "error"  # API server logging level
+    username: "admin"  # API server username
+    password: ""  # Leave empty to auto-generate and store in Secret
 
   # Trade settings
-  max_open_trades: -1  # Maximum number of simultaneous open trades (-1 for unlimited)
+  max_open_trades: 5  # Maximum number of simultaneous open trades
   stake_amount: 100  # Amount to stake per trade in the defined currency
   stake_currency: USDT  # Currency used for staking (e.g., USDT, BTC, ETH)
   timeframe: 1h  # Trading timeframe (e.g., 5m for 5 minutes)
 
   tradable_balance_ratio: 0.999  # Percentage of balance available for trading
-  trading_mode: "futures"  # Trading mode (spot or futures)
+  trading_mode: "spot"  # Trading mode (spot or futures)
   margin_mode: "isolated"  # Margin mode (isolated or cross)
 
   use_exit_signal: true  # Enable exit signals for closing trades
   process_only_new_candles: true  # Process only new candles for efficiency
   trailing_stop: false  # Enable trailing stop-loss
-  force_entry_enable: true  # Allow forced entry into trades
+  force_entry_enable: false  # Allow forced entry into trades
 
   # Position adjustment (DCA)
-  position_adjustment_enable: true  # Enable Dollar-Cost Averaging (DCA)
-  max_entry_position_adjustment: 100  # Maximum number of position adjustments (DCA)
+  position_adjustment_enable: false  # Enable Dollar-Cost Averaging (DCA)
+  max_entry_position_adjustment: 0  # Maximum number of position adjustments (DCA)
 
   # Dry-run mode settings
   dry_run: true  # Simulate trades without real funds (for testing)
@@ -111,11 +59,11 @@ config:
   exchange:
     name: binance  # The exchange to use (e.g., Binance)
     ccxt_async_config:
-      enableRateLimit: false  # Disable rate limiting for async requests
-      rateLimit: 100  # Rate limit for async requests
+      enableRateLimit: true  # Enable rate limiting for async requests
+      rateLimit: 1000  # Rate limit for async requests (ms)
     ccxt_config:
-      enableRateLimit: false  # Disable rate limiting for synchronous requests
-      rateLimit: 100  # Rate limit for synchronous requests
+      enableRateLimit: true  # Enable rate limiting for synchronous requests
+      rateLimit: 1000  # Rate limit for synchronous requests (ms)
     log_responses: false  # Disable logging of exchange responses for reduced verbosity
     pair_blacklist: []  # List of pairs to avoid (currently empty)
     pair_whitelist: []  # List of pairs to trade (currently empty)
@@ -137,7 +85,7 @@ tolerations: []  # Define tolerations for tainted nodes
 
 # Testing configuration for downloading data, backtesting, and hyperopt
 testing:
-  enabled: false  # Enable or disable testing features
+  enabled: true  # Enable or disable testing features
 
   # Data download settings
   download_data:
@@ -147,7 +95,7 @@ testing:
       - "1d"  # Timeframe for downloaded data
     dl_trades: false  # Disable trade data download (slow version)
     pair_whitelist:
-      - "BTC/USDT"  # Whitelisted pairs for data download
+      - "BTC/USDT:USDT"  # Whitelisted pairs for data download (futures format)
     extraArgs:
     # Use `--prepend` to download data prior, 
     # or `--erase` to redownload all data.
@@ -169,7 +117,7 @@ testing:
 
   # Hyperopt settings for strategy optimization
   hyperopt:
-    enabled: false  # Enable hyperoptimization
+    enabled: true  # Enable hyperoptimization
     offset: 0  # Period x days ago
     days: 30  # Number of days of data to use for optimization
     hyperoptStrategy: "SharpeHyperOptLossDaily"  # Hyperopt strategy to use
@@ -177,7 +125,7 @@ testing:
       - roi  # Optimize return on investment
       - stoploss  # Optimize stoploss parameters
       # Additional spaces like trailing, buy, sell can be added as needed
-    fee: 0.0005  # Trading fee used for hyperopt
+    fee: 0.001  # Trading fee used for hyperopt
     tries: 30  # Number of hyperopt attempts
     resources: {}  # Resource limits for hyperopt
     # Example:
@@ -215,137 +163,21 @@ testing:
       annotations: {}  # Additional annotations for the ingress
       # Example:
       #  kubernetes.io/tls-acme: "true"  # Enable TLS using cert-manager
-      hosts:
-        - "example.com"  # Replace with your domain
-      tls: true  # Enable TLS for the ingress
-      tlsSecretName: freqtrade-ui-tls  # Name of the TLS secret
+      hosts: []  # e.g. ["example.com"]
+      tls: false  # Enable TLS for the ingress
+      tlsSecretName: ""  # Name of the TLS secret
 
-# Persistent Volume Claims (PVC) for storing data and strategies
-pvc:
-  sharedData:
-    enabled: false  # Enable PVC for storing bot data
-    fixPermissions: true  # Fix permissions for the mounted volume
-    size: 1Gi  # Size of the PVC for data storage
-    storageClass: "nfs"  # Optional storage class for the PVC
-    accessMode: ReadWriteMany  # Access mode for the PVC (multiple writers)
-    useExistingPVC: false  # Use an existing PVC instead of creating a new one
-    existingPVCName: ""  # Name of the existing PVC if useExistingPVC is true
+# Persistent Volume Claims (PVC) for storing data and results
+persistance:
+  enabled: false
+  size: 1Gi  # Size of the PVC for data storage
+  storageClass: ""  # Optional storage class for the PVC
+  accessMode: ReadWriteOnce  # Access mode for the PVC
 
-# Strategy information
-strategyName: Best  # Name of the strategy being used
 
-# Keep this line: "class {{ .Values.strategyName }}(IStrategy):"
-# It is an example. Do not use it in live mode.
-strategy: |-
- # --- Do not remove these libs ---
- from freqtrade.strategy import IStrategy
- from typing import Dict, List
- from functools import reduce
- from pandas import DataFrame
- # --------------------------------
+# Strategy to be used by the bot
+strategy: Best
 
- import talib.abstract as ta
- import freqtrade.vendor.qtpylib.indicators as qtpylib
-
- class {{ .Values.strategyName }}(IStrategy):
-
-    INTERFACE_VERSION: int = 3
-    # Minimal ROI designed for the strategy.
-    # This attribute will be overridden if the config file contains "minimal_roi"
-    minimal_roi = {
-        "60":  0.01,
-        "30":  0.03,
-        "20":  0.04,
-        "0":  0.05
-    }
-
-    # Optimal stoploss designed for the strategy
-    # This attribute will be overridden if the config file contains "stoploss"
-    stoploss = -0.10
-
-    # Optimal timeframe for the strategy
-    timeframe = "{{ .Values.config.timeframe }}"
-
-    # trailing stoploss
-    trailing_stop = False
-    trailing_stop_positive = 0.01
-    trailing_stop_positive_offset = 0.02
-
-    # run "populate_indicators" only for new candle
-    process_only_new_candles = True
-
-    # Experimental settings (configuration will overide these if set)
-    use_exit_signal = True
-    exit_profit_only = True
-    ignore_roi_if_entry_signal = False
-
-    # Optional order type mapping
-    order_types = {
-        'entry': 'limit',
-        'exit': 'limit',
-        'stoploss': 'market',
-        'stoploss_on_exchange': False
-    }
-
-    def informative_pairs(self):
-        """
-        Define additional, informative pair/interval combinations to be cached from the exchange.
-        These pair/interval combinations are non-tradeable, unless they are part
-        of the whitelist as well.
-        For more information, please consult the documentation
-        :return: List of tuples in the format (pair, interval)
-            Sample: return [("ETH/USDT", "5m"),
-                            ("BTC/USDT", "15m"),
-                            ]
-        """
-        return []
-
-    def populate_indicators(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
-        """
-        Adds several different TA indicators to the given DataFrame
-
-        Performance Note: For the best performance be frugal on the number of indicators
-        you are using. Let uncomment only the indicator you are using in your strategies
-        or your hyperopt configuration, otherwise you will waste your memory and CPU usage.
-        """
-
-        dataframe['ema20'] = ta.EMA(dataframe, timeperiod=20)
-        dataframe['ema50'] = ta.EMA(dataframe, timeperiod=50)
-        dataframe['ema100'] = ta.EMA(dataframe, timeperiod=100)
-
-        heikinashi = qtpylib.heikinashi(dataframe)
-        dataframe['ha_open'] = heikinashi['open']
-        dataframe['ha_close'] = heikinashi['close']
-
-        return dataframe
-
-    def populate_entry_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
-        """
-        Based on TA indicators, populates the buy signal for the given dataframe
-        :param dataframe: DataFrame
-        :return: DataFrame with buy column
-        """
-        dataframe.loc[
-            (
-                qtpylib.crossed_above(dataframe['ema20'], dataframe['ema50']) &
-                (dataframe['ha_close'] > dataframe['ema20']) &
-                (dataframe['ha_open'] < dataframe['ha_close'])  # green bar
-            ),
-            'enter_long'] = 1
-
-        return dataframe
-
-    def populate_exit_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
-        """
-        Based on TA indicators, populates the sell signal for the given dataframe
-        :param dataframe: DataFrame
-        :return: DataFrame with buy column
-        """
-        dataframe.loc[
-            (
-                qtpylib.crossed_above(dataframe['ema50'], dataframe['ema100']) &
-                (dataframe['ha_close'] < dataframe['ema20']) &
-                (dataframe['ha_open'] > dataframe['ha_close'])  # red bar
-            ),
-            'exit_long'] = 1
-        return dataframe
+# List of strategies to be loaded into the bot
+strategies:
+  - Best.py
