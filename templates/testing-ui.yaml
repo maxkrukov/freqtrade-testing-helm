@@ -1,34 +1,58 @@
-{{- if and .Values.testing.enabled  .Values.testing.ui.enabled }}
+{{- if and .Values.testing.enabled .Values.testing.ui.enabled }}
+
+{{- $ba := "" }}
+{{- $bo := "" }}
+{{- $ha := "" }}
+{{- $ho := "" }}
+{{- if or .Values.testing.backtesting.enabled .Values.testing.hyperopt.enabled .Values.testing.download_data.enabled }}
+# Calculate backtesting and hyperopt time ranges
+{{- $ba = printf "-%dh" (mul 24 (add .Values.testing.backtesting.days .Values.testing.backtesting.offset )) }}
+{{- $bo = printf "-%dh" (mul 24 .Values.testing.backtesting.offset ) }}
+{{- $ha = printf "-%dh" (mul 24 (add .Values.testing.hyperopt.days .Values.testing.hyperopt.offset )) }}
+{{- $ho = printf "-%dh" (mul 24 .Values.testing.hyperopt.offset ) }}
+{{- end }}
+
 ---
 apiVersion: apps/v1
-kind: Deployment
+kind: StatefulSet
 metadata:
-  name: {{ include "freqtrade-testing.fullname" . }}-ui
+  name: {{ include "freqtrade-testing.fullname" . }}
   labels:
-    app: {{ include "freqtrade-testing.fullname" . }}-ui
+    app: {{ include "freqtrade-testing.fullname" . }}
 spec:
+  serviceName: {{ include "freqtrade-testing.fullname" . }}-headless
   replicas: 1
   selector:
     matchLabels:
-      app: {{ include "freqtrade-testing.fullname" . }}-ui
-  strategy:
-    type: Recreate
+      app: {{ include "freqtrade-testing.fullname" . }}
   template:
     metadata:
       labels:
-        app: {{ include "freqtrade-testing.fullname" . }}-ui
+        app: {{ include "freqtrade-testing.fullname" . }}
+      annotations:
+        checksum/config: {{ include (print $.Template.BasePath "/secret.yaml") . | sha256sum }}
+        checksum/strategies: {{ include (print $.Template.BasePath "/configmap.yaml") . | sha256sum }}
     spec:
+      terminationGracePeriodSeconds: 0
       initContainers:
-      {{- if .Values.pvc.sharedData.fixPermissions }}
       - name: fix-permissions
         image: busybox
-        command: ["sh", "-c", "chmod 777 /data"]
+        command: ["sh", "-c", "chmod 777 /freqtrade/user_data"]
         volumeMounts:
           - name: shared-data
-            mountPath: /data
-      {{- end }}
+            mountPath: /freqtrade/user_data
+            subPath: user_data
+      - name: seed-strategies
+        image: busybox
+        command: ["sh", "-c", "cp -a /opt/strategies/. /freqtrade/user_data/strategies/"]
+        volumeMounts:
+          - name: shared-data
+            mountPath: /freqtrade/user_data
+            subPath: user_data
+          - name: strategies
+            mountPath: /opt/strategies
       containers:
-      - name: backtesting-ui
+      - name: ui
         image: {{ .Values.image.repository }}:{{ .Values.image.tag }}
         imagePullPolicy: {{ .Values.image.pullPolicy | default "IfNotPresent" }}
         ports:
@@ -40,30 +64,115 @@ spec:
         args:
         - webserver
         - --config
-        - /freqtrade/config/config.json
+        - /freqtrade/user_data/config.json
         - --datadir
-        - /data/{{ .Values.config.exchange.name | default "binance" }}
+        - /freqtrade/user_data/data/{{ .Values.config.exchange.name | default "binance" }}
         {{- with .Values.testing.ui.extraArgs }}
+        {{- if kindIs "string" . }}
+        - {{ . | quote }}
+        {{- else }}
         {{- . | toYaml | nindent 8 }}
         {{- end }}
+        {{- end }}
         volumeMounts:
-        - mountPath: /data
+        - mountPath: /freqtrade/user_data
           name: shared-data
-          subPath: data
-        - mountPath: /freqtrade/user_data/strategies
-          name: shared-data
-          subPath: strategies
-        - mountPath: /freqtrade/user_data/backtest_results
-          name: shared-data
-          subPath: backtest_results
-        - mountPath: /freqtrade/config/config.json
-          name: configmap
+          subPath: user_data
+        - mountPath: /freqtrade/user_data/config.json
+          name: config-secret
           subPath: config.json
-        - mountPath: /freqtrade/user_data/strategies/{{ .Values.strategyName }}{{ .Values.config.timeframe }}.py
-          name: configmap
-          subPath: {{ .Values.strategyName }}{{ .Values.config.timeframe }}.py
         resources:
-          {{- toYaml .Values.resources | nindent 12 }}
+          {{- toYaml .Values.testing.ui.resources | nindent 12 }}
+      - name: testing
+        image: {{ .Values.image.repository }}:{{ .Values.image.tag }}
+        imagePullPolicy: {{ .Values.image.pullPolicy | default "IfNotPresent" }}
+        command:
+        - sh
+        - -c
+        args:
+        - |-
+          set -ex
+          {{- if .Values.testing.download_data.enabled }}
+          freqtrade download-data \
+            --pairs {{ concat .Values.testing.download_data.pair_whitelist .Values.config.exchange.pair_whitelist | uniq | join " " }} \
+            --days {{ .Values.testing.download_data.days | quote }} \
+            --timeframes {{ ( concat ( list .Values.config.timeframe ) .Values.testing.download_data.timeframes ) | uniq | join " " }} \
+            --datadir /freqtrade/user_data/data/{{ .Values.config.exchange.name | default "binance" }} \
+            --config /freqtrade/user_data/config.json \
+            {{- if .Values.testing.download_data.dl_trades }}
+            --dl-trades \
+            {{- end }}
+            {{- with .Values.testing.download_data.extraArgs }}
+            {{- if kindIs "string" . }}
+            {{ . }} \
+            {{- else }}
+            {{- range . }}
+            {{ . }} \
+            {{- end }}
+            {{- end }}
+            {{- end }}
+            &&
+          {{- end }}
+          {{- if .Values.testing.hyperopt.enabled }}
+          freqtrade hyperopt \
+            --config /freqtrade/user_data/config.json \
+            --datadir /freqtrade/user_data/data/{{ .Values.config.exchange.name | default "binance" }} \
+            --hyperopt-loss {{ .Values.testing.hyperopt.hyperoptStrategy }} \
+            --spaces {{ .Values.testing.hyperopt.spaces | join " " }} \
+            --strategy {{ .Values.strategy }} \
+            -e {{ .Values.testing.hyperopt.tries | quote }} \
+            {{- if .Values.testing.hyperopt.fee }}
+            --fee {{ .Values.testing.hyperopt.fee | quote }} \
+            {{- end }}
+            {{- if .Values.testing.hyperopt.days }}
+            --timerange {{ now | mustDateModify $ha | date "20060102-" }}{{ now | mustDateModify $ho | date "20060102" }} \
+            {{- end }}
+            {{- with .Values.testing.hyperopt.extraArgs }}
+            {{- if kindIs "string" . }}
+            {{ . }} \
+            {{- else }}
+            {{- range . }}
+            {{ . }} \
+            {{- end }}
+            {{- end }}
+            {{- end }}
+            &&
+          {{- end }}
+          {{- if .Values.testing.backtesting.enabled }}
+          freqtrade backtesting \
+            --config /freqtrade/user_data/config.json \
+            --datadir /freqtrade/user_data/data/{{ .Values.config.exchange.name | default "binance" }} \
+            --breakdown {{ .Values.testing.backtesting.breakdown }} \
+            --strategy-list {{ .Values.strategy }} \
+            --backtest-filename=backtest-result-{{ .Values.strategy }}-{{ .Values.config.timeframe }}-{{ now | date "2006-01-02_15-04-05" }}.json \
+            {{- if .Values.testing.backtesting.days }}
+            --timerange {{ now | mustDateModify $ba | date "20060102-" }}{{ now | mustDateModify $bo | date "20060102" }} \
+            {{- end }}
+            {{- if .Values.testing.backtesting.fee }}
+            --fee {{ .Values.testing.backtesting.fee | quote }} \
+            {{- end }}
+            {{- with .Values.testing.backtesting.extraArgs }}
+            {{- if kindIs "string" . }}
+            {{ . }} \
+            {{- else }}
+            {{- range . }}
+            {{ . }} \
+            {{- end }}
+            {{- end }}
+            {{- end }}
+            &&
+          {{- end }}
+          echo "Testing complete"
+          tail -f /dev/null
+        volumeMounts:
+        - mountPath: /freqtrade/user_data
+          name: shared-data
+          subPath: user_data
+        - mountPath: /freqtrade/user_data/config.json
+          name: config-secret
+          subPath: config.json
+        resources:
+          {{- toYaml .Values.testing.backtesting.resources | nindent 12 }}
       restartPolicy: Always
       {{- if .Values.nodeSelector }}
       nodeSelector:
@@ -78,28 +187,50 @@ spec:
 {{ toYaml .Values.tolerations | indent 8 }}
       {{- end }}
       volumes:
-      - name: shared-data
-        {{- if .Values.pvc.sharedData.useExistingPVC }}
-        persistentVolumeClaim:
-          claimName: {{ .Values.pvc.sharedData.existingPVCName }}
-        {{- else if .Values.pvc.sharedData.enabled }}
-        persistentVolumeClaim:
-          claimName: {{ include "freqtrade-testing.fullname" . }}-shared-data
-        {{- else }}
-        emptyDir: {}
-        {{- end }}
-      - name: configmap
+      - name: strategies
         configMap:
           name: {{ include "freqtrade-testing.fullname" . }}-config
+      - name: config-secret
+        secret:
+          secretName: {{ include "freqtrade-testing.fullname" . }}-config
+      {{- if not .Values.persistance.enabled }}
+      - name: shared-data
+        emptyDir: {}
+      {{- end }}
+  {{- if .Values.persistance.enabled }}
+  volumeClaimTemplates:
+  - metadata:
+      name: shared-data
+    spec:
+      accessModes:
+        - {{ .Values.persistance.accessMode }}
+      resources:
+        requests:
+          storage: {{ .Values.persistance.size }}
+      {{- if .Values.persistance.storageClass }}
+      storageClassName: {{ .Values.persistance.storageClass }}
+      {{- end }}
+  {{- end }}
 
-{{- if .Values.testing.ui.ingress.enabled }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "freqtrade-testing.fullname" . }}-headless
+  labels:
+    app: {{ include "freqtrade-testing.fullname" . }}
+spec:
+  clusterIP: None
+  selector:
+    app: {{ include "freqtrade-testing.fullname" . }}
+
 ---
 apiVersion: v1
 kind: Service
 metadata:
   name: {{ include "freqtrade-testing.fullname" . }}-ui
   labels:
-    app: {{ include "freqtrade-testing.fullname" . }}-ui
+    app: {{ include "freqtrade-testing.fullname" . }}
 spec:
   type: ClusterIP
   ports:
@@ -108,8 +239,9 @@ spec:
       protocol: TCP
       name: http
   selector:
-    app: {{ include "freqtrade-testing.fullname" . }}-ui
+    app: {{ include "freqtrade-testing.fullname" . }}
 
+{{- if .Values.testing.ui.ingress.enabled }}
 ---
 {{ $nm := include "freqtrade-testing.fullname" . }}
 apiVersion: networking.k8s.io/v1
@@ -117,7 +249,7 @@ kind: Ingress
 metadata:
   name: {{ include "freqtrade-testing.fullname" . }}-ui
   labels:
-    app: {{ include "freqtrade-testing.fullname" . }}-ui
+    app: {{ include "freqtrade-testing.fullname" . }}
   annotations:
     {{- if .Values.testing.ui.ingress.annotations }}
     {{ toYaml .Values.testing.ui.ingress.annotations | nindent 4 }}
@@ -147,6 +279,3 @@ spec:
   {{- end }}
 {{- end }}
 {{- end }}
-
-
-

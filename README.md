@@ -1,6 +1,6 @@
-# Freqtrade Testing Helm Chart (job)
+# Freqtrade Testing Helm Chart (StatefulSet)
 
-The **freqtrade-testing-helm** chart enables you to deploy [Freqtrade](https://www.freqtrade.io/), an open-source cryptocurrency trading bot, in a Kubernetes environment. It supports backtesting with historical data, hyperoptimization to fine-tune strategies, and data downloading for accurate testing and simulations.
+The **freqtrade-testing-helm** chart enables you to run [Freqtrade](https://www.freqtrade.io/) testing workloads in a Kubernetes environment. It supports backtesting with historical data, hyperoptimization to fine-tune strategies, data downloading, and an optional UI for reviewing results.
 
 ## What is Freqtrade?
 
@@ -29,12 +29,12 @@ To run accurate backtests and hyperopt simulations, you need historical market d
 
 ## Chart Overview
 
-This Helm chart deploys and manages the Freqtrade bot in a Kubernetes cluster. It supports:
+This Helm chart deploys a single StatefulSet with two containers (UI + testing flow) in a Kubernetes cluster. It supports:
 
 - **Backtesting**: Test your trading strategies using historical data.
 - **Hyperopt**: Optimize strategy parameters for improved performance.
 - **Data Download**: Download historical market data to ensure accurate backtesting and hyperopt results.
-- **Persistent Storage**: Use Persistent Volume Claims (PVC) to store strategies and bot data.
+- **Persistent Storage**: Use a StatefulSet PVC template to store data and backtest results.
 
 ---
 
@@ -56,31 +56,32 @@ helm upgrade -i -f custom-values.yaml fretrade-testing/fretrade-testing
 
 ## Freqtrade Configuration
 
-The **freqtrade-testing-helm** chart allows you to fully customize your bot configuration through the `values.yaml` file. Below is an explanation of the key configuration options for Freqtrade.
+The **freqtrade-testing-helm** chart allows you to customize Freqtrade configuration through `values.yaml`. Below is an explanation of the key configuration options.
 
 ### General Settings
 
-- **`bot_name`**: Sets the name of your Freqtrade bot, used internally to identify the bot.
+- **`bot_name`**: Sets the name of your Freqtrade instance, used internally.
 - **`max_open_trades`**: Defines the maximum number of trades that can be open at any time, limiting your exposure.
 - **`stake_amount`**: The amount to be staked in each trade, set according to your risk tolerance.
 - **`stake_currency`**: The currency in which you will stake, such as `USDT` or `BTC`.
+- **`api_server`**: API server settings for the UI. `enabled`, `listen_ip_address`, and `listen_port` are hardcoded in the chart. Set `username`, `password`, and `verbosity` in values. If `password` is empty, it’s auto-generated and stored in the `<release>-api` secret.
 
 ### Trading Settings
 
 - **`timeframe`**: Specifies the timeframe for trading (e.g., `5m` for 5-minute candlestick intervals). Different strategies perform better on different timeframes.
 - **`tradable_balance_ratio`**: Sets the portion of the total available balance that can be used for trading (e.g., `0.9999`), helping to prevent overexposure.
-- **`trading_mode`**: Determines whether the bot is trading in `spot` or `futures` mode, depending on your exchange and risk preferences.
-- **`use_exit_signal`**: If set to `true`, the bot will automatically use exit signals to close trades, based on your strategy.
+- **`trading_mode`**: Determines whether trading is in `spot` or `futures` mode, depending on your exchange and risk preferences.
+- **`use_exit_signal`**: If set to `true`, exit signals are used to close trades.
 
 ### Position Management (DCA)
 
-- **`position_adjustment_enable`**: Enables Dollar-Cost Averaging (DCA), allowing the bot to adjust position entries in the event of price declines to improve the average buy price.
+- **`position_adjustment_enable`**: Enables Dollar-Cost Averaging (DCA), allowing position adjustments on price declines.
 - **`max_entry_position_adjustment`**: The maximum number of times DCA can be applied to adjust a position.
 
 ### Exchange Configuration
 
-- **`exchange.name`**: Defines the exchange the bot will trade on (e.g., `binance`, `kraken`).
-- **`exchange.pair_whitelist`**: A list of trading pairs the bot is allowed to trade. Example: `ETH/USDT`. More pairs can be added to expand your trading universe.
+- **`exchange.name`**: Defines the exchange to use (e.g., `binance`, `kraken`).
+- **`exchange.pair_whitelist`**: A list of trading pairs to use. Example: `ETH/USDT:USDT`.
 
 ### Pricing Strategy
 
@@ -89,7 +90,7 @@ The **freqtrade-testing-helm** chart allows you to fully customize your bot conf
 
 ### Resource Management
 
-To control resource allocation for the Freqtrade bot on Kubernetes, you can define resource requests and limits in `values.yaml`. This ensures that your bot operates within defined resource constraints, preventing it from overusing memory or CPU.
+To control resource allocation for the UI and testing containers, you can define resource requests and limits in `values.yaml`. This ensures workloads operate within defined resource constraints.
 
 ```yaml
 resources:
@@ -103,7 +104,7 @@ resources:
 
 ### Docker Image
 
-The bot is deployed in a Docker container. You can control which Docker image version is used by modifying these parameters:
+The containers use the Freqtrade Docker image. You can control which image version is used by modifying these parameters:
 
 - **`repository`**: The Docker image repository where the Freqtrade bot is hosted. The default repository is `freqtradeorg/freqtrade`.
 - **`tag`**: The version of the Docker image to pull. For example, `"2023.12"`.
@@ -122,7 +123,7 @@ image:
 
 ## Backtesting, Hyperopt, and Data Download
 
-Backtesting, hyperopt, and data download features allow you to simulate, optimize, and prepare your bot for real-world scenarios using historical data. These features can be configured in `values.yaml`.
+Backtesting, hyperopt, and data download features allow you to simulate and optimize strategies using historical data. These features can be configured in `values.yaml`.
 
 ### Backtesting
 
@@ -180,9 +181,9 @@ testing:
     enabled: true  # Enable downloading of historical data
     days: 60  # Number of days to download
     timeframes:
-      - "5m"  # Timeframe(s) for which data is downloaded (e.g., 5m, 1d)
+      - "1h"  # Timeframe(s) for which data is downloaded (e.g., 5m, 1h, 1d)
     pair_whitelist:
-      - "BTC/USDT"  # List of pairs for which data should be downloaded
+      - "BTC/USDT:USDT"  # List of pairs for which data should be downloaded
     dl_trades: false  # Set to true if you want to download trade data from some exchanges (very slow)
 ```
 
@@ -192,43 +193,26 @@ The downloaded data is then used for backtesting and hyperopt to ensure accurate
 
 ## Persistent Volume Claims (PVC)
 
-To ensure that bot data and strategies persist across restarts and redeployments, this Helm chart supports PVCs (Persistent Volume Claims). This allows the bot to store data such as its state, logs, and strategies in persistent storage.
-
-- **`pvc.data.enabled`**: Enables persistent storage for
-
- the bot’s data, such as logs and states.
-- **`pvc.strategy.enabled`**: Enables persistent storage for trading strategies, ensuring that they are retained across restarts.
-- **`pvc.data.size`**: Specifies the size of the storage for bot data (e.g., `1Gi`).
-- **`pvc.strategy.size`**: Specifies the size of the storage for strategies (e.g., `1Gi`).
-
-Example configuration:
+To persist downloaded data and backtest results across runs, enable the StatefulSet PVC template:
 
 ```yaml
-pvc:
-  data:
-    enabled: true
-    size: 1Gi
-  strategy:
-    enabled: true
-    size: 1Gi
+persistance:
+  enabled: true
+  size: 5Gi
+  accessMode: ReadWriteOnce
 ```
 
 ---
 
 ## Strategy
 
-You can define your custom strategy in Python using the `strategy` template provided in the `values.yaml`. The class name is dynamically inserted using the Helm template system.
-
-Here is a sample strategy definition:
+Place strategy files in the `strategies/` directory and list them in `values.yaml`:
 
 ```yaml
-strategy: |-
-  # --- Do not remove these libs ---
-  from freqtrade.strategy import IStrategy
-  from typing import Dict, List
-  from functools import reduce
-  from pandas import DataFrame
-  # --------------------------------
+strategy: Best
+strategies:
+  - Best.py
+```
 
   import talib.abstract as ta
   import freqtrade.vendor.qtpylib.indicators as qtpylib
@@ -249,11 +233,10 @@ strategy: |-
 
 ## Conclusion
 
-The **freqtrade-testing-helm** chart simplifies the deployment of the Freqtrade trading bot in a Kubernetes environment, enabling backtesting, hyperoptimization, and data downloading for accurate strategy testing. Customize your bot with flexible configuration options, and leverage persistent storage to maintain strategies and bot data across deployments.
+The **freqtrade-testing-helm** chart simplifies running Freqtrade testing workloads in Kubernetes, enabling backtesting, hyperoptimization, and data downloading for accurate strategy evaluation. Customize configuration and leverage persistent storage to keep data and results across runs.
 
 ---
 
 ## License
 
 This Helm chart is open-source and licensed under the MIT License.
-

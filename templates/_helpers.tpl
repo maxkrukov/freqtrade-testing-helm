@@ -11,3 +11,17 @@
 app.kubernetes.io/name: "{{ .Chart.Name }}"
 app.kubernetes.io/instance: "{{ .Release.Name }}"
 {{- end -}}
+
+{{- define "freqtrade-testing.apiPassword" -}}
+{{- if .Values.config.api_server.password }}
+{{- .Values.config.api_server.password -}}
+{{- else -}}
+{{- $secretName := printf "%s-api" (include "freqtrade-testing.fullname" .) -}}
+{{- $existing := lookup "v1" "Secret" .Release.Namespace $secretName -}}
+{{- if $existing -}}
+{{- index $existing.data "password" | b64dec -}}
+{{- else -}}
+{{- randAlphaNum 24 -}}
+{{- end -}}
+{{- end -}}
+{{- end -}}
